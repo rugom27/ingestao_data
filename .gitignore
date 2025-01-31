@@ -1,0 +1,20 @@
+# Ignorar ficheiro de variáveis de ambiente
+.env
+
+# Ignorar pasta do ambiente virtual
+venv/
+
+# Ignorar ficheiros e pastas comuns em projetos Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar configurações específicas do editor
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Ignorar logs e ficheiros temporários
+*.log
+*.tmp
