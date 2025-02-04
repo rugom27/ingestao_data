@@ -202,3 +202,12 @@ def update_reuniao(
                 )
     except Exception as e:
         st.error(f"Erro ao atualizar reunião: {e}")
+
+
+# Fechar conexão à base de dados
+def close_connection():
+    global conn
+    conn.close()
+    conn = None  # Reinicia a conexão global
+    st.success("Conexão com a base de dados fechada com sucesso!")
+    st.rerun()  # Atualiza a página imediatamente

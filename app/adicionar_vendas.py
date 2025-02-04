@@ -9,7 +9,9 @@ from db import (
     add_produto,
     add_reuniao,
     get_max_cliente,
-)
+    get_connection,
+    close_connection
+    )
 
 
 # def display_page_to_rafael():
@@ -269,3 +271,9 @@ with tab2:
 #     display_page_to_rafael()
 # else:
 #     st.write("Please contact us to get access!")
+
+
+
+st.button("Abrir conexão à base de dados") = get_connection()
+
+st.button("Fechar conexão à base de dados") = close_connection()
