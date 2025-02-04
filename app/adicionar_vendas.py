@@ -12,6 +12,7 @@ from db import (
     get_connection,
     close_connection,
 )
+import re
 
 
 # def display_page_to_rafael():
@@ -27,7 +28,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-ultimo_numero_cliente = get_max_cliente()
+lista_numeros_clientes = get_max_cliente()
+
+# Extrair apenas valores numéricos, ignorando alfanuméricos como "9A"
+numeros_validos = [
+    int(row[0])
+    for row in lista_numeros_clientes
+    if row[0] and re.fullmatch(r"\d+", row[0])
+]
+
+# Se houver números válidos, retorna o maior +1; senão, começa em 1
+ultimo_numero_cliente = str(max(numeros_validos) + 1) if numeros_validos else "1"
+
 
 tab1, tab2 = st.tabs(["Gestão de Clientes", "Adicionar Clientes/Produtos"])
 
@@ -271,12 +283,3 @@ with tab2:
 #     display_page_to_rafael()
 # else:
 #     st.write("Please contact us to get access!")
-
-
-if st.button("Abrir conexão à base de dados"):
-    conn = get_connection()  # Chama a função para abrir a conexão
-    st.success("Conexão aberta com sucesso!")
-
-if st.button("Fechar conexão à base de dados"):
-    close_connection()  # Chama a função para fechar a conexão
-    st.warning("Conexão fechada!")

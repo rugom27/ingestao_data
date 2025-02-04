@@ -43,17 +43,7 @@ def get_max_cliente():
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT numero_cliente FROM clientes;")
-                clientes = cur.fetchall()
-
-                # Extrair apenas valores numéricos, ignorando alfanuméricos como "9A"
-                numeros_validos = [
-                    int(row[0])
-                    for row in clientes
-                    if row[0] and re.fullmatch(r"\d+", row[0])
-                ]
-
-                # Se houver números válidos, retorna o maior +1; senão, começa em 1
-                return str(max(numeros_validos) + 1) if numeros_validos else "1"
+                return cur.fetchall()
     except psycopg2.InterfaceError:
         st.error("Erro: Conexão com a base de dados foi fechada inesperadamente.")
         return "Erro"
