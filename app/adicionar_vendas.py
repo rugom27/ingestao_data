@@ -10,8 +10,8 @@ from db import (
     add_reuniao,
     get_max_cliente,
     get_connection,
-    close_connection
-    )
+    close_connection,
+)
 
 
 # def display_page_to_rafael():
@@ -273,7 +273,10 @@ with tab2:
 #     st.write("Please contact us to get access!")
 
 
+if st.button("Abrir conexão à base de dados"):
+    conn = get_connection()  # Chama a função para abrir a conexão
+    st.success("Conexão aberta com sucesso!")
 
-st.button("Abrir conexão à base de dados") = get_connection()
-
-st.button("Fechar conexão à base de dados") = close_connection()
+if st.button("Fechar conexão à base de dados"):
+    close_connection()  # Chama a função para fechar a conexão
+    st.warning("Conexão fechada!")
