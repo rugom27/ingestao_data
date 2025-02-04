@@ -87,7 +87,7 @@ with tab1:
                 "Razão Não Venda",
                 "Produto ID",
                 "Quantidade",
-                "Preço",
+                "Valor da Venda Total",
                 "Data Criação",
             ],
         )
