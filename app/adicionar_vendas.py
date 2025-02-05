@@ -72,6 +72,7 @@ with tab1:
                 "Preço",
                 "Razão Não Venda",
                 "Data Criação",
+                "Última Atualização",
             ],
         )
         st.dataframe(
@@ -89,12 +90,13 @@ with tab1:
                 "Quantidade",
                 "Valor da Venda Total",
                 "Data Criação",
+                "Última Atualização",
             ],
         )
     else:
         st.warning("Não existem reuniões para este cliente.")
 
-    # ---------------------FORMULARIO DA REUNIAO--------------------------
+    # ---------------------REGISTO DE REUNIÃO--------------------------
 
     # Selecionar se houve não uma venda
     if "houve_venda" not in st.session_state:
@@ -107,106 +109,127 @@ with tab1:
     )
     st.session_state["houve_venda"] = houve_venda  # Atualiza o estado do formulario
 
-    # Formulário de reunião
-    # with st.form("formulario_de_reuniao", clear_on_submit=False, enter_to_submit=False):
-    #     st.header("Reunião")
-    #     data_reuniao = st.date_input("Data da Reunião")
-    #     descricao_reuniao = st.text_area("Descrição da Reunião")
+    # Criar lista de produtos no session state se ainda não existir
+    if "produtos_venda" not in st.session_state:
+        st.session_state["produtos_venda"] = []
 
-    #     # houve_venda = st.radio("Foi feita uma venda?", ("Sim", "Não"))
+    st.header("Reunião")
+    data_reuniao = st.date_input("Data da Reunião")
+    descricao_reuniao = st.text_area("Descrição da Reunião")
 
-    #     produto_id = None
-    #     quantidade = None
-    #     valor_total = None
-    #     razao_nao_venda = None
+    if st.session_state["houve_venda"] == "Sim":
+        produtos = get_produtos()
+        nomes_produtos = [p[1] for p in produtos]
+        produto_selecionado = st.selectbox("Selecione um produto:", nomes_produtos)
+        produto_id = next(p[0] for p in produtos if p[1] == produto_selecionado)
+        quantidade = st.number_input("Quantidade vendida", min_value=1, step=1)
+        preco_unitario = st.number_input("Preço unitário (€)", min_value=0.01)
+        valor_total = quantidade * preco_unitario
 
-    #     if houve_venda == "Sim":
-    #         produtos = get_produtos()
-    #         nomes_produtos = [p[1] for p in produtos]
-    #         produto_selecionado = st.selectbox(
-    #             "Selecione um produto ou adicione um novo:", nomes_produtos
-    #         )
-    #         produto_id = next(p[0] for p in produtos if p[1] == produto_selecionado)
+        st.text(
+            f"Valor de venda total do produto {produto_selecionado}: {valor_total:.2f} EUR"
+        )
 
-    #         quantidade = st.number_input("Quantidade vendida", min_value=1, step=1)
-    #         valor_total = st.number_input(
-    #             "Valor total da venda (€)", min_value=0.01, step=0.01
-    #         )
-    #         valor_calculado = quantidade * valor_total
-    #         st.text(f"Valor total calculado (sugestão): {valor_calculado:.2f} EUR")
-    #     else:
-    #         razao_nao_venda = st.text_area("Razão da não venda")
-
-    #     submit_button = st.form_submit_button("Registar Reunião")
-
-    with st.form("formulario_de_reuniao", clear_on_submit=False, enter_to_submit=False):
-        st.header("Reunião")
-        data_reuniao = st.date_input("Data da Reunião")
-        descricao_reuniao = st.text_area("Descrição da Reunião")
-
-        if st.session_state["houve_venda"] == "Sim":
-            produtos = get_produtos()
-            nomes_produtos = [p[1] for p in produtos]
-            produto_selecionado = st.selectbox("Selecione um produto:", nomes_produtos)
-            produto_id = next(p[0] for p in produtos if p[1] == produto_selecionado)
-            quantidade = st.number_input("Quantidade vendida", min_value=1, step=1)
-            valor_total = st.number_input(
-                "Valor total da venda (€)", min_value=0.01, step=0.01
-            )
-            valor_calculado = quantidade * valor_total
-            st.text(f"Valor total calculado (sugestão): {valor_calculado:.2f} EUR")
-        else:
-            razao_nao_venda = st.text_area("Razão da não venda")
-
-        submit_button = st.form_submit_button("Registar Reunião")
-        # ------------------------------------------------------------- #
-        if submit_button:
-            if cliente_id_selecionado is None:
-                st.error("Por favor, selecione um cliente antes de registar a reunião.")
-            else:
-                reuniao_data = {
-                    "cliente_id": cliente_id_selecionado,
-                    "data_reuniao": str(data_reuniao),
-                    "descricao": descricao_reuniao,
-                    "houve_venda": houve_venda,
+        # Botão tem que estar FORA do form
+        if st.button("Adicionar Produto"):
+            st.session_state["produtos_venda"].append(
+                {
+                    "Produto_id": produto_id,
+                    "Produto": produto_selecionado,
+                    "Quantidade": quantidade,
+                    "Preco": preco_unitario,
+                    "Valor Total": valor_total,
                 }
+            )
+            st.success(f"Produto {produto_selecionado} adicionado!")
 
-                if houve_venda == "Sim":
-                    if produto_id is None or quantidade <= 0 or valor_total <= 0:
-                        st.error(
-                            "Por favor, preencha todos os campos relacionados à venda."
-                        )
-                    else:
-                        reuniao_data.update(
+        # Mostrar lista de produtos adicionados
+        if st.session_state["produtos_venda"]:
+            st.subheader("Produtos Adicionados")
+            # Criar o dataframe com os produtos adicionados
+            df_produtos = pd.DataFrame(st.session_state["produtos_venda"])
+            # Criar o total da venda
+            total_venda = df_produtos["Valor Total"].sum()
+
+            # Exibir a tabela com os produtos adicionados
+            st.dataframe(df_produtos, hide_index=True)
+
+            # Exibir o total da venda estilizado
+            st.markdown(
+                f"""
+                <div style="
+                    background-color: #173928; 
+                    color: white; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    text-align: center; 
+                    font-size: 18px; 
+                    font-weight: bold;
+                    margin-bottom: 20px;">  <!-- Adiciona mais espaço abaixo -->
+                    Total da venda: {total_venda:.2f} EUR
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    else:
+        razao_nao_venda = st.text_area("Razão da não venda")
+    st.write("")
+    st.write("")
+    st.write("")
+    # REGISTAR REUNIÃO
+    if st.button("Registar Reunião"):
+        if cliente_id_selecionado is None:
+            st.error("Por favor, selecione um cliente antes de registar a reunião.")
+        else:
+            reuniao_data = {
+                "cliente_id": cliente_id_selecionado,
+                "data_reuniao": str(data_reuniao),
+                "descricao": descricao_reuniao,
+                "houve_venda": st.session_state["houve_venda"],
+            }
+
+            if st.session_state["houve_venda"] == "Sim":
+                if not st.session_state["produtos_venda"]:
+                    st.error(
+                        "Adicione pelo menos um produto antes de registar a venda!"
+                    )
+                else:
+                    for produto in st.session_state["produtos_venda"]:
+                        add_reuniao(
                             {
-                                "produto_id": produto_id,
-                                "quantidade_vendida": quantidade,
-                                "preco_vendido": valor_total,
+                                "cliente_id": cliente_id_selecionado,
+                                "data_reuniao": str(data_reuniao),
+                                "descricao": descricao_reuniao,
+                                "houve_venda": "Sim",
+                                "produto_id": produto["produto_id"],
+                                "quantidade_vendida": produto["quantidade"],
+                                "preco_vendido": produto["preco"],
                                 "razao_nao_venda": None,
                             }
                         )
-                elif houve_venda == "Não":
-                    if not razao_nao_venda.strip():
-                        st.error(
-                            "Por favor, preencha a razão pela qual não houve venda."
-                        )
-                    else:
-                        reuniao_data.update(
-                            {
-                                "produto_id": None,
-                                "quantidade_vendida": None,
-                                "preco_vendido": None,
-                                "razao_nao_venda": razao_nao_venda.strip(),
-                            }
-                        )
 
-                try:
-                    add_reuniao(reuniao_data)
-                    st.success("Reunião registada com sucesso!")
+                    st.success("Reunião e vendas registadas com sucesso!", icon="✅")
 
-                except Exception as e:
-                    st.error(f"Erro ao registar reunião: {e}")
-                    st.text_area("Detalhes do erro", traceback.format_exc())
+                    # Limpar a lista de produtos
+                    st.session_state["produtos_venda"] = []
+
+            elif st.session_state["houve_venda"] == "Não":
+                if not razao_nao_venda.strip():
+                    st.error("Por favor, preencha a razão pela qual não houve venda.")
+                else:
+                    add_reuniao(
+                        {
+                            "cliente_id": cliente_id_selecionado,
+                            "data_reuniao": str(data_reuniao),
+                            "descricao": descricao_reuniao,
+                            "houve_venda": "Não",
+                            "produto_id": None,
+                            "quantidade_vendida": None,
+                            "preco_vendido": None,
+                            "razao_nao_venda": razao_nao_venda.strip(),
+                        }
+                    )
+                    st.success("Reunião registada com sucesso!", icon="✅")
 
 with tab2:
 
@@ -276,7 +299,7 @@ with tab2:
                 st.rerun()  # Atualiza a página imediatamente
 
 
-# # Show different content based on the user's email address.
+# Show different content based on the user's email address.
 # if st.experimental_user.email == "rafacavac@gmail.com":
 #     display_page_to_rafael()
 # elif st.experimental_user.email == "ruigomes950@gmail.com":

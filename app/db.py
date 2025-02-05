@@ -129,7 +129,10 @@ def add_reuniao(reuniao):
                 ),
             )
             conn.commit()
-            st.success("Reunião registada com sucesso!", icon="✅")
+            st.success(
+                f"Venda produto: {reuniao["produto_id"]} registada com sucesso!",
+                icon="✅",
+            )
 
 
 # Função para obter reuniões de um cliente
