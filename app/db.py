@@ -200,7 +200,10 @@ def update_reuniao(
 # Fechar conexão à base de dados
 def close_connection():
     global conn
-    conn.close()
-    conn = None  # Reinicia a conexão global
-    st.success("Conexão com a base de dados fechada com sucesso!")
-    st.rerun()  # Atualiza a página imediatamente
+    if conn and conn.closed == 0:
+        conn.close()
+        conn = None  # Reinicia a conexão global
+        st.success("🔴 Conexão com a base de dados fechada com sucesso! 🔴")
+        st.rerun()  # Atualiza a página imediatamente
+    else:
+        st.sidebar.warning("⚠️ Nenhuma conexão ativa para fechar.")
