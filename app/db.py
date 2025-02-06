@@ -12,7 +12,6 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
-@st.cache_resource
 def get_connection():
     """Retorna uma nova conexão com a base de dados."""
     return psycopg2.connect(DATABASE_URL)
