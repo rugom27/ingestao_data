@@ -17,7 +17,6 @@ conn = None  # Variável global para armazenar a conexão
 
 
 # -----------------------CONEXÃO BASE DE DADOS-------------------------------
-@st.cache_resource
 def get_connection():
     """Abre a conexão e mantém em cache."""
     return psycopg2.connect(DATABASE_URL)
