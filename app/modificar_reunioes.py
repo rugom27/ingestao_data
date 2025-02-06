@@ -13,8 +13,6 @@ from db import (
 )
 import time
 
-get_connection()
-
 clientes_p2 = get_clientes()
 nomes_clientes_p2 = [c[1] for c in clientes_p2]
 cliente_selecionado_nome_p2 = st.selectbox("Selecione um cliente:", nomes_clientes_p2)
