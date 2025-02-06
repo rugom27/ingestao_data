@@ -15,6 +15,8 @@ from db import (
 import re
 
 
+get_connection()
+
 # def display_page_to_rafael():
 st.markdown(
     """

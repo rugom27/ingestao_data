@@ -16,6 +16,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 conn = None  # Variável global para armazenar a conexão
 
 
+# -----------------------CONEXÃO BASE DE DADOS-------------------------------
 # Conexão com a base de dados
 @st.cache_resource  # caching decorator para evitar a repetição de conexão
 def get_connection():
@@ -27,6 +28,33 @@ def get_connection():
     return conn
 
 
+# Fechar conexão à base de dados
+def close_connection():
+    global conn
+    if conn and conn.closed == 0:
+        conn.close()
+        conn = None  # Reinicia a conexão global
+        st.success("🔴 Conexão com a base de dados fechada com sucesso! 🔴")
+        st.rerun()  # Atualiza a página imediatamente
+    else:
+        st.sidebar.warning("⚠️ Nenhuma ligação ativa para fechar.")
+
+
+def get_connection_back():
+    """Abre uma conexão à db"""
+    global conn
+    if conn is None or conn.closed != 0:
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            st.sidebar.success("🟢 Ligação estabelecida com sucesso!")
+            st.rerun()  # Atualiza a página imediatamente
+        except Exception as e:
+            st.sidebar.error(f"❌ Erro ao ligar à base de dados: {e}")
+    else:
+        st.sidebar.warning("⚠️ A conexão já está aberta.")
+
+
+# -----------------------FUNÇÕES DA BASE DE DADOS-------------------------------
 # Função para obter clientes
 @st.cache_data  # caching decorator
 def get_clientes():
@@ -195,28 +223,3 @@ def update_reuniao(
                 )
     except Exception as e:
         st.error(f"Erro ao atualizar reunião: {e}")
-
-
-# Fechar conexão à base de dados
-def close_connection():
-    global conn
-    if conn and conn.closed == 0:
-        conn.close()
-        conn = None  # Reinicia a conexão global
-        st.success("🔴 Conexão com a base de dados fechada com sucesso! 🔴")
-        st.rerun()  # Atualiza a página imediatamente
-    else:
-        st.sidebar.warning("⚠️ Nenhuma ligação ativa para fechar.")
-
-
-def get_connection_back():
-    """Abre uma conexão à db"""
-    global conn
-    if conn is None or conn.closed != 0:
-        try:
-            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
-            st.sidebar.success("🟢 Ligação estabelecida com sucesso!")
-        except Exception as e:
-            st.sidebar.error(f"❌ Erro ao ligar à base de dados: {e}")
-    else:
-        st.sidebar.warning("⚠️ A conexão já está aberta.")
