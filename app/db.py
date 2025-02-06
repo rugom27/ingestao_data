@@ -206,4 +206,17 @@ def close_connection():
         st.success("🔴 Conexão com a base de dados fechada com sucesso! 🔴")
         st.rerun()  # Atualiza a página imediatamente
     else:
-        st.sidebar.warning("⚠️ Nenhuma conexão ativa para fechar.")
+        st.sidebar.warning("⚠️ Nenhuma ligação ativa para fechar.")
+
+
+def get_connection_back():
+    """Abre uma conexão à db"""
+    global conn
+    if conn is None or conn.closed != 0:
+        try:
+            conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+            st.sidebar.success("🟢 Ligação estabelecida com sucesso!")
+        except Exception as e:
+            st.sidebar.error(f"❌ Erro ao ligar à base de dados: {e}")
+    else:
+        st.sidebar.warning("⚠️ A conexão já está aberta.")

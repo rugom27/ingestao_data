@@ -2,7 +2,7 @@ import streamlit as st
 from db import get_connection, close_connection
 
 # Criar barra lateral para navegação e controle da conexão
-st.sidebar.markdown("## 🔧 Controle da Conexão")
+st.sidebar.markdown("## 🔧 Controlo de Ligação (Base de dados)")
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🟢 Abrir Conexão", key="abrir"):
