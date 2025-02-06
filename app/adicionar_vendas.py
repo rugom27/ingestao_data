@@ -27,18 +27,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-lista_numeros_clientes = get_max_cliente()
-
-# Extrair apenas valores numéricos, ignorando alfanuméricos como "9A"
-numeros_validos = [
-    int(row[0])
-    for row in lista_numeros_clientes
-    if row[0] and re.fullmatch(r"\d+", row[0])
-]
-
-# Se houver números válidos, retorna o maior +1; senão, começa em 1
-ultimo_numero_cliente = str(max(numeros_validos) + 1) if numeros_validos else "1"
-
 
 tab1, tab2 = st.tabs(["Gestão de Clientes", "Adicionar Clientes/Produtos"])
 
@@ -46,6 +34,18 @@ with tab1:
     clientes = get_clientes()
     nomes_clientes = [c[1] for c in clientes]
     cliente_selecionado_nome = st.selectbox("Selecione um cliente:", nomes_clientes)
+
+    lista_numeros_clientes = get_max_cliente()
+
+    # Extrair apenas valores numéricos, ignorando alfanuméricos como "9A"
+    numeros_validos = [
+        int(row[0])
+        for row in lista_numeros_clientes
+        if row[0] and re.fullmatch(r"\d+", row[0])
+    ]
+
+    # Se houver números válidos, retorna o maior +1; senão, começa em 1
+    ultimo_numero_cliente = str(max(numeros_validos) + 1) if numeros_validos else "1"
 
     cliente_id_selecionado = None
     for cliente in clientes:
