@@ -9,8 +9,6 @@ from db import (
     add_produto,
     add_reuniao,
     get_max_cliente,
-    get_connection,
-    close_connection,
 )
 import re
 
