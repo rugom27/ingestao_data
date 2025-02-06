@@ -57,16 +57,9 @@ def get_clientes():
 @st.cache_data
 def get_max_cliente():
     global conn
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT numero_cliente FROM clientes;")
-            return cur.fetchall()
-    except psycopg2.InterfaceError:
-        st.error("Erro: Conexão com a base de dados foi fechada inesperadamente.")
-        return "Erro"
-    except Exception as e:
-        st.error(f"Erro ao obter número máximo de cliente: {e}")
-        return "Erro"
+    with conn.cursor() as cur:
+        cur.execute("SELECT numero_cliente FROM clientes;")
+        return cur.fetchall()
 
 
 # Função para obter produtos
