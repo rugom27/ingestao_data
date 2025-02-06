@@ -134,7 +134,7 @@ with tab1:
                     "Produto_id": produto_id,
                     "Produto": produto_selecionado,
                     "Quantidade": quantidade,
-                    "Preco": preco_unitario,
+                    "Preço Unitário": preco_unitario,
                     "Valor Total": valor_total,
                 }
             )
@@ -198,9 +198,9 @@ with tab1:
                                 "data_reuniao": str(data_reuniao),
                                 "descricao": descricao_reuniao,
                                 "houve_venda": "Sim",
-                                "produto_id": produto["produto_id"],
-                                "quantidade_vendida": produto["quantidade"],
-                                "preco_vendido": produto["preco"],
+                                "produto_id": produto_id,
+                                "quantidade_vendida": quantidade,
+                                "preco_vendido": preco_unitario,
                                 "razao_nao_venda": None,
                             }
                         )
