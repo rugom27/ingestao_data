@@ -31,8 +31,10 @@ tab1, tab2 = st.tabs(["Gestão de Clientes", "Adicionar Clientes/Produtos"])
 with tab1:
     clientes = get_clientes()
     nomes_clientes = [c[1] for c in clientes]
+    # Selecionar cliente
     cliente_selecionado_nome = st.selectbox("Selecione um cliente:", nomes_clientes)
 
+    # ---------------------------------Obter numero máximo de cliente para sugerir-----------------------------
     lista_numeros_clientes = get_max_cliente()
 
     # Extrair apenas valores numéricos, ignorando alfanuméricos como "9A"
@@ -51,7 +53,7 @@ with tab1:
             cliente_id_selecionado = cliente[0]
             break
 
-    # ---------------------TABELA DE REUNIOES--------------------------
+    # ----------------------------TABELA DE REUNIOES-----------------------------------------------------------
     reunioes = get_ultimas_reunioes(cliente_id_selecionado)
 
     # Verifica se há reuniões e converte para DataFrame
@@ -127,7 +129,7 @@ with tab1:
             f"Valor de venda total do produto {produto_selecionado}: {valor_total:.2f} EUR"
         )
 
-        # Botão tem que estar FORA do form
+        # Botão para adicionar produto à lista de produtos vendidos
         if st.button("Adicionar Produto"):
             st.session_state["produtos_venda"].append(
                 {
@@ -140,7 +142,7 @@ with tab1:
             )
             st.success(f"Produto {produto_selecionado} adicionado!")
 
-        # Mostrar lista de produtos adicionados
+        # Mostrar lista de produtos adicionados à lista de produtos vendidos
         if st.session_state["produtos_venda"]:
             st.subheader("Produtos Adicionados")
             # Criar o dataframe com os produtos adicionados
@@ -198,9 +200,15 @@ with tab1:
                                 "data_reuniao": str(data_reuniao),
                                 "descricao": descricao_reuniao,
                                 "houve_venda": "Sim",
-                                "produto_id": produto_id,
-                                "quantidade_vendida": quantidade,
-                                "preco_vendido": preco_unitario,
+                                "produto_id": produto[
+                                    "Produto_id"
+                                ],  # Corrigido para usar o produto correto
+                                "quantidade_vendida": produto[
+                                    "Quantidade"
+                                ],  # Corrigido para usar a quantidade correta
+                                "preco_vendido": produto[
+                                    "Preço Unitário"
+                                ],  # Corrigido para usar o preço correto
                                 "razao_nao_venda": None,
                             }
                         )
@@ -295,6 +303,10 @@ with tab2:
                 st.success("Produto adicionado com sucesso!")
                 st.rerun()  # Atualiza a página imediatamente
 
+
+if st.button("Clear cache from connection"):
+    # Clears all st.cache_resource caches:
+    st.cache_resource.clear()
 
 # Show different content based on the user's email address.
 # if st.experimental_user.email == "rafacavac@gmail.com":
