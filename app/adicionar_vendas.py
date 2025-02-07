@@ -307,6 +307,7 @@ with tab2:
 if st.button("Clear cache from connection"):
     # Clears all st.cache_resource caches:
     st.cache_resource.clear()
+    st.rerun()  # Atualiza a página imediatamente
 
 # Show different content based on the user's email address.
 # if st.experimental_user.email == "rafacavac@gmail.com":
