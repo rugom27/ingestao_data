@@ -234,7 +234,6 @@ with tab1:
                             "razao_nao_venda": razao_nao_venda.strip(),
                         }
                     )
-                    st.success("Reunião registada com sucesso!", icon="✅")
 
 with tab2:
 
@@ -304,15 +303,7 @@ with tab2:
                 st.rerun()  # Atualiza a página imediatamente
 
 
-if st.button("Clear cache from connection"):
-    # Clears all st.cache_resource caches:
-    st.cache_resource.clear()
-    st.rerun()  # Atualiza a página imediatamente
-
-# Show different content based on the user's email address.
-# if st.experimental_user.email == "rafacavac@gmail.com":
-#     display_page_to_rafael()
-# elif st.experimental_user.email == "ruigomes950@gmail.com":
-#     display_page_to_rafael()
-# else:
-#     st.write("Please contact us to get access!")
+# if st.button("Clear cache from connection"):
+#     # Clears all st.cache_resource caches:
+#     st.cache_resource.clear()
+#     st.rerun()  # Atualiza a página imediatamente

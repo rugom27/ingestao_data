@@ -10,6 +10,7 @@ from db import (
     get_max_cliente,
     update_reuniao,
     get_connection,
+    get_ultimas_reunioes_geral,
 )
 import time
 
@@ -82,3 +83,46 @@ if st.button("Guardar Alterações"):
                 quantidade=edited["Quantidade"],
                 preco=edited["Preço"],
             )
+
+
+ultimas_reunioes_geral = get_ultimas_reunioes_geral()
+
+df_ultimas_reunioes_geral = pd.DataFrame(
+    ultimas_reunioes_geral,
+    columns=[
+        "ID",
+        "Cliente ID",
+        "Data",
+        "Descrição",
+        "Houve Venda",
+        "Produto ID",
+        "Quantidade",
+        "Preço",
+        "Razão Não Venda",
+        "Data Criação",
+        "Última Atualização",
+    ],
+)
+
+
+st.subheader("Reuniões Gerais")
+st.write("Ordenadas por introdução na Base de Dados")
+st.write("")
+st.dataframe(
+    df_ultimas_reunioes_geral,
+    use_container_width=False,
+    hide_index=True,
+    column_order=[
+        "ID",
+        "Cliente ID",
+        "Data",
+        "Descrição",
+        "Houve Venda",
+        "Razão Não Venda",
+        "Produto ID",
+        "Quantidade",
+        "Preço",
+        "Data Criação",
+        "Última Atualização",
+    ],
+)
