@@ -20,7 +20,7 @@ st.markdown(
         text-align: center;
     }
     </style>
-    <h1 class='centered-title'>Gestão Comercial - Jovagro</h1>
+    <h1 class='centered-title'>Gestão Comercial</h1>
     """,
     unsafe_allow_html=True,
 )
