@@ -99,6 +99,17 @@ def get_ultimas_reunioes_geral():
         release_connection(conn)
 
 
+def get_all_reunioes():
+    """Obtém todas as reuniões de todos os clientes por ordem de criação"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM reunioes ORDER BY data_criacao_linha DESC;")
+            return cur.fetchall() or []
+    finally:
+        release_connection(conn)
+
+
 # ---------------------------- Funções de escrita ---------------------------------
 
 

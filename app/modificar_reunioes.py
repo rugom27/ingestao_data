@@ -11,8 +11,11 @@ from db import (
     update_reuniao,
     get_connection,
     get_ultimas_reunioes_geral,
+    get_all_reunioes,
 )
-import time
+import datetime as dt
+from streamlit_calendar import calendar
+
 
 clientes_p2 = get_clientes()
 nomes_clientes_p2 = [c[1] for c in clientes_p2]
@@ -126,3 +129,49 @@ st.dataframe(
         "Última Atualização",
     ],
 )
+
+# -----------------------------Calendário de Reuniões--------------------------
+
+st.title("Calendário de Reuniões")
+
+# Obter todas as reuniões
+reunioes = get_all_reunioes()
+
+# Criar um dataframe se houver reuniões
+if reunioes:
+    df_reunioes = pd.DataFrame(
+        reunioes,
+        columns=[
+            "ID",
+            "Cliente ID",
+            "Data",
+            "Descrição",
+            "Houve Venda",
+            "Produto ID",
+            "Quantidade",
+            "Preço",
+            "Razão Não Venda",
+            "Data Criação",
+            "Última Atualização",
+        ],
+    )
+    df_reunioes["Data"] = pd.to_datetime(df_reunioes["Data"])
+    df_reunioes.sort_values(by="Data", inplace=True)
+
+    # Criar eventos para o calendário
+    eventos = []
+    for _, row in df_reunioes.iterrows():
+        cor = "green" if row["Houve Venda"] == "Sim" else "red"
+        eventos.append(
+            {
+                "title": row["Cliente ID"],
+                "start": row["Data"].isoformat(),
+                "end": row["Data"].isoformat(),
+                "color": cor,
+            }
+        )
+
+    # Exibir calendário
+    calendar(events=eventos, options={"initialView": "dayGridMonth"})
+else:
+    st.warning("Não existem reuniões registradas.")
