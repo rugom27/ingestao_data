@@ -142,17 +142,9 @@ if reunioes:
     df_reunioes = pd.DataFrame(
         reunioes,
         columns=[
-            "ID",
-            "Cliente ID",
+            "Name",
             "Data",
-            "Descrição",
             "Houve Venda",
-            "Produto ID",
-            "Quantidade",
-            "Preço",
-            "Razão Não Venda",
-            "Data Criação",
-            "Última Atualização",
         ],
     )
     df_reunioes["Data"] = pd.to_datetime(df_reunioes["Data"])
@@ -164,10 +156,11 @@ if reunioes:
         cor = "green" if row["Houve Venda"] == "Sim" else "red"
         eventos.append(
             {
-                "title": row["Cliente ID"],
-                "start": row["Data"].isoformat(),
-                "end": row["Data"].isoformat(),
-                "color": cor,
+                "title": row["Name"],
+                "start": row["Data"].date().isoformat(),
+                "end": row["Data"].date().isoformat(),
+                "backgroundColor": cor,
+                "borderColor": cor,
             }
         )
 

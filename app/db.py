@@ -104,7 +104,16 @@ def get_all_reunioes():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM reunioes ORDER BY data_criacao_linha DESC;")
+            cur.execute(
+                """SELECT 
+                        c.name, 
+                        r.data_reuniao,  
+                        r.houve_venda
+                    FROM reunioes r
+                    JOIN clientes c ON c.id = r.cliente_id
+                    group by c.name,r.houve_venda,r.data_reuniao
+                """
+            )
             return cur.fetchall() or []
     finally:
         release_connection(conn)
