@@ -4,3 +4,4 @@ pandas
 python-dotenv
 streamlit_calendar
 pandasql
+matplotlib
