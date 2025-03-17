@@ -119,6 +119,22 @@ def get_all_reunioes():
         release_connection(conn)
 
 
+def get_all_reunioes_para_vizualizacao():
+    """Obtém todas as reuniões de todos os clientes"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT *
+                    FROM reunioes r
+                    JOIN clientes c ON c.id = r.cliente_id
+                """
+            )
+            return cur.fetchall() or []
+    finally:
+        release_connection(conn)
+
+
 # ---------------------------- Funções de escrita ---------------------------------
 
 
@@ -237,5 +253,35 @@ def update_reuniao(
     except Exception as e:
         conn.rollback()
         st.error(f"Erro ao atualizar reunião: {e}")
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------- Funções para Métricas ---------------------------------
+def get_taxa_de_conversao():
+    """Obtém as taxas de conversão de todas as vendas por distrito"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """ with cte1 as (
+                    SELECT c.distrito, count(*) as numero_de_visitas_convertidas
+                    FROM reunioes r
+                    JOIN clientes c ON c.id = r.cliente_id
+                    where houve_venda = 'Sim'
+                    group by c.distrito
+                ), cte2 as (
+                SELECT c.distrito, count(*) as numero_de_visitas
+                FROM reunioes r
+                JOIN clientes c ON c.id = r.cliente_id
+                group by c.distrito
+                )
+
+            SELECT cte1.distrito, cte2.numero_de_visitas, cte1.numero_de_visitas_convertidas
+            from cte1
+            join cte2 on cte1.distrito = cte2.distrito
+                """
+            )
+            return cur.fetchall() or []
     finally:
         release_connection(conn)
