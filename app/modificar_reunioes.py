@@ -104,6 +104,7 @@ df_ultimas_reunioes_geral = pd.DataFrame(
         "Razão Não Venda",
         "Data Criação",
         "Última Atualização",
+        "Distribuidor",
     ],
 )
 
@@ -127,6 +128,7 @@ st.dataframe(
         "Preço",
         "Data Criação",
         "Última Atualização",
+        "Distribuidor",
     ],
 )
 

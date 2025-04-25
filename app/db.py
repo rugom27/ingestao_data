@@ -72,6 +72,17 @@ def get_produtos():
         release_connection(conn)
 
 
+def get_all_produtos():
+    """Obtém todos os produtos."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM produtos ORDER BY ref;")
+            return cur.fetchall()
+    finally:
+        release_connection(conn)
+
+
 def get_ultimas_reunioes(cliente_id):
     """Obtém as últimas reuniões de um cliente."""
     conn = get_connection()
@@ -146,8 +157,8 @@ def add_cliente(cliente_data):
             cur.execute("BEGIN;")  # Iniciar transação
             cur.execute(
                 """
-                INSERT INTO clientes (name, numero_cliente, cod_postal, tipo_cliente, distrito, latitude, longitude, data_criacao_linha)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                INSERT INTO clientes (name, numero_cliente, cod_postal, tipo_cliente, distrito, latitude, longitude, data_criacao_linha,supplier_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), %s)
                 RETURNING id;
                 """,
                 (
@@ -158,6 +169,7 @@ def add_cliente(cliente_data):
                     cliente_data["distrito"],
                     cliente_data["latitude"],
                     cliente_data["longitude"],
+                    cliente_data["distribuidor"],
                 ),
             )
             cliente_id = cur.fetchone()[0]
@@ -280,6 +292,99 @@ def get_taxa_de_conversao():
             SELECT cte1.distrito, cte2.numero_de_visitas, cte1.numero_de_visitas_convertidas
             from cte1
             join cte2 on cte1.distrito = cte2.distrito
+                """
+            )
+            return cur.fetchall() or []
+    finally:
+        release_connection(conn)
+
+
+# ---------------------------- Funções para leitura de métricas para fornecedores ---------------------------------
+
+
+def vendas_a_agricultores_para_distribuidores():
+    """Quanto é que foi vendido a agricultores e que foi parar a estes distribuidores"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    distribuidor,
+                    d.distribuidor_id,
+                    COALESCE(SUM((quantidade_vendida*preco_vendido)),0) AS total_vendas
+                FROM reunioes r
+                full JOIN distribuidores d ON r.supplier_id = d.distribuidor_id
+                where distribuidor is not null
+                GROUP BY distribuidor_id, distribuidor;
+                """
+            )
+            return cur.fetchall() or []
+    finally:
+        release_connection(conn)
+
+
+def vendas_a_distribuidores_2024_relatorio_vendas():
+    """Quanto é que foi vendido a distribuidores em 2024. Informação vai ser proveniente do relatório fiscal de vendas a distribuidores"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                with cte_1 as (
+                    SELECT nome, EXTRACT(YEAR FROM data) AS ano, SUM(eur) AS total_vendido
+                    FROM vendas v
+                    GROUP BY nome, EXTRACT(YEAR FROM data))
+
+                    select d.distribuidor,total_vendido 
+                    from distribuidores d 
+                    join cte_1 on upper(d.distribuidor) = upper(cte_1.nome)
+                    where ano = 2024;
+                """
+            )
+            return cur.fetchall() or []
+    finally:
+        release_connection(conn)
+
+
+def vendas_a_distribuidores_relatorio_reunioes():
+    """Quanto é que foi vendido a distribuidores. Informação vai ser proveniente doa tabela de registo de reuniões"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH lista (name) AS (
+                                        VALUES
+                                            ('Fertidouro, Lda'),
+                                            ('Pereiras & Almeida, Lda.'),
+                                            ('Nobre E Azevedo Unipessoal, Lda'),
+                                            ('GREMIORITA, PRODUTOS PARA AGRICULTURA, LDA'),
+                                            ('Joaquim Domingos Duarte Comba Ribeiro'),
+                                            ('Prorural-Produtos Agricolas, Lda'),
+                                            ('MANUEL GOMES LOURENÇO, LDA'),
+                                            ('ANTÓNIO AUGUSTO LAJA'),
+                                            ('NITRILON - AGRÍCOLA, UNIPESSOAL,LDA.'),
+                                            ('UFCB - UNIÃO DOS FRUTICULTORES DA COVA DA BEIRA, LDA'),
+                                            ('MONCORVAGRI')
+                                        ),
+                                        vendas_por_cliente AS (
+                                        SELECT
+                                            c.name,
+                                            SUM(r.quantidade_vendida * r.preco_vendido) AS total_vendas
+                                        FROM reunioes r
+                                        JOIN clientes c 
+                                            ON c.id = r.cliente_id
+                                        WHERE r.houve_venda = 'Sim'
+                                        GROUP BY c.name
+                                        )
+                                        SELECT
+                                        l.name,
+                                        COALESCE(v.total_vendas, 0) AS total_vendas
+                                        FROM lista l
+                                        LEFT JOIN vendas_por_cliente v
+                                        ON v.name = l.name
+                                        ORDER BY l.name;
                 """
             )
             return cur.fetchall() or []

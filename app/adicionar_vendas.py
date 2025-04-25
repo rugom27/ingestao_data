@@ -12,6 +12,46 @@ from db import (
 )
 import re
 
+
+tipo_cliente_options = [
+    "Distribuição",
+    "Produção animal",
+    "Técnico/Consultor",
+    "Consumidor Final - Outros",
+    "Agricultor - Frutículas",
+    "Cooperativa",
+    "Revendedor - Biocidas",
+    "Agricultor - Outros",
+    "Revendedor - Cooperativa",
+    "Revenda - Cash and Carry",
+    "Distribuidor",
+    "Revenda",
+    "Revenda - Casa Agrícola",
+    "Revendedor",
+    "Revenda - Outros",
+    "Agricultor",
+    "Agricultor - Vinha",
+    "Revenda - Cooperativa",
+    "Revenda - Brico",
+    "Revendedor - Casa agrícola",
+    "Revenda-Gr. Distribuição",
+    "Revenda - Drogaria",
+]
+
+distribuidor_options = {
+    "Fertidouro, Lda": 1,
+    "Pereiras & Almeida, Lda.": 2,
+    "Nobre E Azevedo Unipessoal, Lda": 3,
+    "GREMIORITA, PRODUTOS PARA AGRICULTURA, LDA": 4,
+    "Joaquim Domingos Duarte Comba Ribeiro": 5,
+    "Prorural-Produtos Agricolas, Lda": 6,
+    "Manuel Gomes Lourenço, Lda": 7,
+    "António Augusto Laja": 8,
+    "Moncorvagri-Com. Prod.Agricolas,Lda": 9,
+    "Nitrilon": 10,
+    "União de Fruticultores da Cova da Beira": 11,
+}
+
 # def display_page_to_rafael():
 st.markdown(
     """
@@ -72,6 +112,7 @@ with tab1:
                 "Razão Não Venda",
                 "Data Criação",
                 "Última Atualização",
+                "Distribuidor",
             ],
         )
         st.dataframe(
@@ -90,6 +131,7 @@ with tab1:
                 "Valor da Venda Total",
                 "Data Criação",
                 "Última Atualização",
+                "Distribuidor",
             ],
         )
     else:
@@ -257,11 +299,16 @@ with tab2:
                     )
 
             cod_postal_novo = st.text_input("Código Postal")
-            tipo_cliente_novo = st.text_input("Tipo de Cliente")
+            tipo_cliente_novo = st.selectbox("Tipo de Cliente", tipo_cliente_options)
             distrito_novo = st.text_input("Distrito")
             latitude_novo = st.number_input("Latitude", format="%.6f")
             longitude_novo = st.number_input("Longitude", format="%.6f")
-
+            distribuidor_novo = st.selectbox(
+                "Distribuidor", list(distribuidor_options.keys())
+            )
+            distribuidor_novo = distribuidor_options[
+                distribuidor_novo
+            ]  # to get the value of the dict to the db
             submit_cliente = st.form_submit_button("Registar Cliente")
 
             if submit_cliente:
@@ -282,6 +329,7 @@ with tab2:
                         "distrito": distrito_novo,
                         "latitude": latitude_novo,
                         "longitude": longitude_novo,
+                        "distribuidor": distribuidor_novo,
                     }
                     try:
                         add_cliente(cliente_data)

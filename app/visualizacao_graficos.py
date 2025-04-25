@@ -1,5 +1,9 @@
 import streamlit as st
-from db import get_all_reunioes_para_vizualizacao, get_taxa_de_conversao
+from db import (
+    get_all_reunioes_para_vizualizacao,
+    get_taxa_de_conversao,
+    get_all_produtos,
+)
 import pandas as pd
 from pandasql import sqldf
 import altair as alt
@@ -28,6 +32,7 @@ f_reunioes = pd.DataFrame(
         "razao_nao_venda",
         "data_criacao_linha_tabela_reunioes",
         "ultima_atualizacao",
+        "supplier_id_tabela_reunioes",
         "id_cliente",
         "name",
         "numero_cliente",
@@ -41,7 +46,15 @@ f_reunioes = pd.DataFrame(
         "latitude",
         "longitude",
         "data_criacao_linha_tabela_clientes",
+        "supplier_id",
     ],
+)
+
+f_reunioes["preco_vendido"] = f_reunioes["preco_vendido"].astype(float)
+f_reunioes["quantidade_vendida"] = f_reunioes["quantidade_vendida"].astype(float)
+
+f_reunioes["total_vendido"] = (
+    f_reunioes["quantidade_vendida"] * f_reunioes["preco_vendido"]
 )
 
 st.title("Dashboard de Vendas")
@@ -52,10 +65,10 @@ with col1:
     # 1. Cartão com o total de vendas total
 
     # -----------------------------------------------------------------------------
-    valor_total_de_vendas = f_reunioes["preco_vendido"].sum()
+    valor_total_de_vendas = f_reunioes["total_vendido"].sum()
     st.metric(
         f"Total de Vendas {current_year}",
-        f"{float(valor_total_de_vendas)} €",
+        f"{valor_total_de_vendas:.2f} €",
         border=True,
     )
     # -----------------------------------------------------------------------------
@@ -67,7 +80,7 @@ with col1:
         (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == current_year)
         & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == current_month)
     ]
-    valor_vendas_mes_atual = df_mes_atual["preco_vendido"].sum()
+    valor_vendas_mes_atual = df_mes_atual["total_vendido"].sum()
 
     # Vendas do Mês Anterior
     previous_year = current_year
@@ -80,7 +93,7 @@ with col1:
         (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == previous_year)
         & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == previous_month)
     ]
-    valor_vendas_mes_anterior = df_mes_anterior["preco_vendido"].sum()
+    valor_vendas_mes_anterior = df_mes_anterior["total_vendido"].sum()
 
     # Cálculo do Month-over-Month (M-o-M)
 
@@ -269,3 +282,104 @@ chart = (
 )
 
 st.altair_chart(chart, use_container_width=True)
+
+
+# Vendas por agricultor por mês
+# --------------------------------------------------------
+#
+# --------------------------------------------------------
+df_histograma = f_reunioes.copy()
+df_histograma["data_reuniao"] = pd.to_datetime(
+    df_histograma["data_reuniao"], errors="coerce"
+)
+
+df_histograma["mes"] = df_histograma["data_reuniao"].dt.strftime("%B")
+df_histograma["mes_numero"] = df_histograma["data_reuniao"].dt.month
+df_histograma["ano"] = df_histograma["data_reuniao"].dt.year
+
+top_agricultor_by_month = (
+    df_histograma.groupby(["ano", "mes", "mes_numero", "name"])
+    .agg({"total_vendido": "sum"})
+    .reset_index()
+)
+# Agrupa por ano e mês, e soma as vendas
+
+
+# Find the agricultor with the most total vendido for each month
+top_agricultor = top_agricultor_by_month.loc[
+    top_agricultor_by_month.groupby(["ano", "mes_numero"])["total_vendido"].idxmax()
+]
+
+# Sort by year and month
+top_agricultor = top_agricultor.sort_values(by=["ano", "mes_numero"])
+
+st.title("Top Clientes por Mês")
+
+for index, row in top_agricultor.iterrows():
+    st.metric(
+        label=f"Year: {row['ano']} - Month: {row['mes']}",
+        value=f"{row['name']}",
+        delta=f"Total Vendido: {row['total_vendido']:.2f} €",
+    )
+    st.write("---")
+    # Adiciona uma linha separadora entre os meses
+    # st.markdown("---")
+
+#
+# --------------------------------------------------------
+#  Vendas por Produto por mês
+# --------------------------------------------------------
+
+# Supondo que f_reunioes é o DataFrame original
+df_histograma = f_reunioes.copy()
+df_histograma["data_reuniao"] = pd.to_datetime(
+    df_histograma["data_reuniao"], errors="coerce"
+)
+
+df_histograma["mes"] = df_histograma["data_reuniao"].dt.strftime("%B")
+df_histograma["mes_numero"] = df_histograma["data_reuniao"].dt.month
+df_histograma["ano"] = df_histograma["data_reuniao"].dt.year
+
+# importar dados do produto
+produtos = get_all_produtos()
+
+df_produtos = pd.DataFrame(
+    produtos, columns=["produto_id", "ref", "data_criacao_linha"]
+)
+
+
+# Juntar nome do produto ao dataframe pós histograma
+df_histograma = df_histograma.merge(
+    df_produtos[["produto_id", "ref"]],
+    how="left",
+    left_on="produto_id",
+    right_on="produto_id",
+)
+
+
+top_produto_by_month = (
+    df_histograma.groupby(["ano", "mes", "mes_numero", "ref"])
+    .agg({"total_vendido": "sum"})
+    .reset_index()
+)
+# Agrupa por ano, mês e produto, e soma as vendas
+
+# Encontra o produto com o maior total vendido para cada mês
+top_produto = top_produto_by_month.loc[
+    top_produto_by_month.groupby(["ano", "mes_numero"])["total_vendido"].idxmax()
+]
+
+# Ordena por ano e mês
+top_produto = top_produto.sort_values(by=["ano", "mes_numero"])
+
+st.title("Top Produtos por Mês")
+
+for index, row in top_produto.iterrows():
+    st.metric(
+        label=f"Year: {row['ano']} - Month: {row['mes']}",
+        value=f"{row['ref']}",
+        delta=f"Total Vendido: {row['total_vendido']:.2f} €",
+    )
+    st.write("---")
+    # Adiciona uma linha separadora entre os meses
+    # st.markdown("---")
