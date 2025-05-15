@@ -45,6 +45,7 @@ if reunioes_p2 and isinstance(reunioes_p2, list):
             "Razão Não Venda",
             "Data Criação",
             "Última Atualização",
+            "Distribuidor",
         ],
     )
     edited_df = st.data_editor(
@@ -64,6 +65,7 @@ if reunioes_p2 and isinstance(reunioes_p2, list):
             "Preço",
             "Data Criação",
             "Última Atualização",
+            "Distribuidor",
         ],
         key="edit_reunioes",
     )
