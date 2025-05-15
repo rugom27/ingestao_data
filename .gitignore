@@ -18,3 +18,11 @@ __pycache__/
 # Ignorar logs e ficheiros temporários
 *.log
 *.tmp
+
+# # Ignorar ficheiros de info de produtos
+
+info-produtos/
+data/
+tembo_backup.dump
+try4-v5-llm_call+v2environment-llama-index-normal-index.ipynb
+experiment.ipynb

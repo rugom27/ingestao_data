@@ -145,7 +145,7 @@ def aggregate_reports(results_for_aggregation):
 
     CRM Summary: Prioritized high-potential clients & churn risks.
 
-    Strategic Product Insights: Top cross‑sell targets and new markets.
+    Strategic Product Insights: Top cross-sell targets and new markets.
 
     Sales Team Performance: Cohesive recommendations for meeting improvements.
 
