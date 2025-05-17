@@ -3,6 +3,7 @@
 
 # Ignorar pasta do ambiente virtual
 venv/
+.venv
 
 # Ignorar ficheiros e pastas comuns em projetos Python
 __pycache__/

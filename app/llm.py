@@ -4,61 +4,41 @@ import math
 import requests
 from dotenv import load_dotenv
 from groq import Groq
-
+import concurrent.futures
+import streamlit as st
+from textblob import TextBlob
 # Replace with your actual DB connection utilities
 from db import get_connection, release_connection
 
 load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
 
-def call_groq(
-    prompt: str,
-    model: str = "llama-3.3-70b-versatile",
-    max_tokens: int = 2048,
-    temperature: float = 0.3,
-) -> str:
-    """
-    Send a completion request to the Groq API and return the generated text.
-    """
-    chat_completion = client.chat.completions.create(
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        model=model,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
-    return chat_completion.choices[0].message.content.strip()
-
+def call_groq(prompt, model="llama-3.3-70b-versatile", max_tokens=2048, temperature=0.3):
+    try:
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        st.error(f"API error: {e}")
+        return ""
 
 def fetch_reunioes():
-    """Fetch all meetings joined with client & product info."""
     sql = """
-    SELECT 
-        c.id,
-        cliente_id,
-        name            AS client_name,
-        data_reuniao,
-        descricao,
-        houve_venda,
-        ref             AS product_name,
-        quantidade_vendida,
-        preco_vendido   AS preco_unitario,
-        razao_nao_venda,
-        distrito,
-        cultura,
-        area_culturas
+    SELECT c.id, cliente_id, name AS client_name, data_reuniao, descricao, houve_venda,
+           ref AS product_name, quantidade_vendida, preco_vendido AS preco_unitario,
+           razao_nao_venda, distrito, cultura, area_culturas
     FROM reunioes r
-    JOIN clientes c  ON c.id          = r.cliente_id
-    JOIN produtos p  ON p.produto_id  = r.produto_id
+    JOIN clientes c ON c.id = r.cliente_id
+    JOIN produtos p ON p.produto_id = r.produto_id
     ORDER BY r.data_criacao_linha DESC;
     """
     conn = get_connection()
@@ -71,92 +51,196 @@ def fetch_reunioes():
     finally:
         release_connection(conn)
 
+def reunioes_to_json_chunks(data, n_chunks=5):
+    chunk_size = math.ceil(len(data) / n_chunks)
+    return [json.dumps(data[i:i+chunk_size], default=str, ensure_ascii=False)
+            for i in range(0, len(data), chunk_size)]
 
-def reunioes_to_json_chunks(data: list, n_chunks: int = 5) -> list[str]:
-    """
-    Split the list of meetings into `n_chunks` JSON-encoded strings.
-    """
-    total = len(data)
-    chunk_size = math.ceil(total / n_chunks)
-    chunks = []
-    for i in range(n_chunks):
-        start = i * chunk_size
-        end = start + chunk_size
-        subset = data[start:end]
-        chunks.append(json.dumps(subset, default=str, ensure_ascii=False))
-    return chunks
-
-
-# Step 1: Load & chunk the data
-
-# Step 2: Analyze each chunk independently
-
+def preprocess_sentiment(df):
+    df['sentiment'] = df['descricao'].apply(
+        lambda x: ('Positive' if TextBlob(x).sentiment.polarity > 0.2 else
+                   'Negative' if TextBlob(x).sentiment.polarity < -0.2 else
+                   'Neutral'))
+    return df
 
 def get_segments_report(json_chunks):
-    results_for_aggregation = []
-    for idx, chunk in enumerate(json_chunks, start=1):
+    def fetch_insights(chunk, idx):
         prompt = f"""
-                        Data Segment {idx}:
+        You are a business insights assistant for an agricultural sales team (specializing in crop protection/fertilizers).
 
-                        ```json
-                        {chunk}
-                        Analyze this segment and provide insights on:
+        Given the following data segment:
+        ```json
+        {chunk}
+        ```
+        Analyze this regional meeting data to help a field sales representative understand their client base and optimize their sales strategy. Structure your analysis into the following sections:
 
-                        Client Relationship Management (CRM):
+        1. **Client Relationship (CRM) Analysis**
+        - Identify high-potential clients (e.g., multiple meetings, product interest, recent purchases).
+        - Detect churn-risk clients (e.g., frequent “no sale”, negative tone, objections).
+        - Quantify: number of clients per category with justification (include `cliente_id`).
 
-                        High-potential clients and churn risk signals. Explain why you chose them. 
+        2. **Strategic Product Opportunities**
+        - Identify cross-selling opportunities based on product patterns and client needs.
+        - Spot emerging demands or unaddressed problems from meeting descriptions.
+        - Highlight potential new markets or crops.
 
-                        Strategic Product Insights:
+        3. **Sales Team Effectiveness**
+        - Evaluate meeting productivity (e.g., % with successful sales).
+        - Identify effective behaviors (phrases, tone, product combos).
+        - Recommend areas of improvement.
 
-                        Cross-selling opportunities and new market prospects.
+        4. **NLP & Sentiment Insights**
+        - Perform sentiment analysis on `descricao` fields (Positive, Neutral, Negative).
+        - Extract most common topics (e.g., pests, crop types, treatment concerns).
+        - Detect competitor mentions or rival product references.
+        - Summarize frequency metrics and patterns.
 
-                        Sales Team Performance:
+        5. **Predictive Signals**
+        - Based on descriptions and behavior, infer next steps for top clients.
+        - Suggest personalized engagement strategies and timing.
+        - Highlight clients that may require urgent follow-up.
 
-                        Evaluation of meeting effectiveness and suggested improvements.
-                        
-                        Predictive Insights & Recommendations:
+        > Use markdown formatting with clear bullet points, tables, and subtitles. Write in professional, fluent English. Make results suitable for dashboards or client strategy reports.
 
-                        Forecasted client needs and proactive engagement measures.
+        """
+        return call_groq(prompt)
 
-                        Please mark key insights clearly for later aggregation. """
-
-        print(f"Submitting Segment {idx} to Groq…")
-        segment_insights = call_groq(prompt)
-        print(f"--- Insights for Segment {idx} ---")
-        print(segment_insights, "\n")
-        results_for_aggregation.append(segment_insights)
-        return results_for_aggregation
-
+    results = []
+    for idx, chunk in enumerate(json_chunks, 1):
+        try:
+            insights = fetch_insights(chunk, idx)
+            results.append(insights)
+        except Exception as e:
+            st.error(f"Error fetching insights for segment {idx}: {e}")
+    return results
 
 def aggregate_reports(results_for_aggregation):
-    """
-    Aggregate the insights from all segments into a comprehensive report."""
+    prompt = f"""
+    Comprehensive Final Report:
 
-    aggregator_prompt = f"""
-    Aggregator Prompt: Comprehensive Final Report
-
-    You have the following individual segment insights (1-5):
-
+    ```json
     {json.dumps(results_for_aggregation, ensure_ascii=False, indent=2)}
+    ```
 
-    Please synthesize into a single, professional report structured as follows:
+    Produce a comprehensive and executive-level report that will be used by commercial managers. Organize the content as follows:
 
-    Insight Consolidation: Merge overlapping findings.
+    1. **Insight Consolidation**
+    - Deduplicate and merge overlapping findings.
+    - Highlight the strongest and most consistent signals across regions.
 
-    CRM Summary: Prioritized high-potential clients & churn risks.
+    2. **Client Relationship Summary**
+    - Total and % of high-potential clients vs churn-risk clients.
+    - Regional client behavior patterns, if visible.
+    - Actionable follow-ups with `cliente_id`.
 
-    Strategic Product Insights: Top cross-sell targets and new markets.
+    3. **Strategic Product Opportunities**
+    - Top cross-sell matches by product or crop.
+    - New product opportunities by client type or culture.
+    - Quantify top 3 opportunities.
 
-    Sales Team Performance: Cohesive recommendations for meeting improvements.
+    4. **Sales Team Performance**
+    - Overall meeting success rate (% of "houve_venda").
+    - Patterns in high/low performing reps or regions (if visible).
+    - Training or behavior-based recommendations.
 
-    Competitive & Market Intelligence: Integrated competitor analysis.
+    5. **NLP & Sentiment Overview**
+    - Sentiment distribution (Positive/Neutral/Negative %).
+    - Most frequent pain points or keywords.
+    - Competitor references (frequency and tone).
 
-    Predictive Insights: Actionable forecasts with specific client/product/district/crop references.
+    6. **Forecasting & Engagement Actions**
+    - Predict client behavior (seasonality, needs).
+    - List next steps by client tier (high-potential vs churn-risk).
+    - Suggested talking points or timing for engagement.
 
-    Format the output with clear headings, bullet points, and prioritized action items for immediate implementation. """
+    > Write concisely in bullet points and section headers. Use markdown formatting. Avoid redundancy. Deliver actionable insights ready to inform sales strategy. Write in professional, fluent Portuguese (PT-PT).
 
-    print("Submitting Aggregator Prompt to Groq…")
-    final_report = call_groq(aggregator_prompt, max_tokens=4096)
-    print("\n=== Final Consolidated Report ===\n")
-    print(final_report)
-    return final_report
+    """
+    return call_groq(prompt, max_tokens=4096)
+
+
+
+
+
+
+
+
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------
+
+def fetch_reunioes_por_distrito():
+    sql = """
+    SELECT distrito, json_agg(json_build_object(
+        'cliente_id', cliente_id,
+        'client_name', name,
+        'data_reuniao', data_reuniao,
+        'descricao', descricao,
+        'houve_venda', houve_venda,
+        'product_name', ref,
+        'quantidade_vendida', quantidade_vendida,
+        'preco_unitario', preco_vendido,
+        'razao_nao_venda', razao_nao_venda,
+        'cultura', cultura,
+        'area_culturas', area_culturas
+    )) AS reunioes
+    FROM reunioes r
+    JOIN clientes c ON c.id = r.cliente_id
+    JOIN produtos p ON p.produto_id = r.produto_id
+    GROUP BY distrito;
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+            return {row[0]: row[1] for row in rows}
+    finally:
+        release_connection(conn)
+
+# Gerar relatórios segmentados por distrito
+
+def analyze_districts(district_data):
+    def analyze_district(district, data):
+        prompt = f"""
+        Region: {district}
+        ```json
+        {json.dumps(data, ensure_ascii=False)}
+        ```
+        Act as a strategic assistant for a sales representative in the agrochemical sector, analyzing CRM data for a specific region. The data includes meeting descriptions, sales outcomes, product details, timestamps, and customer IDs.
+
+        Provide a structured and quantified analysis for the selected region, focusing on the following:
+
+        1. **Customer Profile:** Identify customers with high purchasing potential (e.g., frequent interactions, past purchases, positive interest) and those at high risk of churn (e.g., multiple “no sale” entries, absence of recent purchases, or recurring objections). Quantify how many customers fall into each category and briefly explain why.
+
+        2. **Product Strategy Insights:** Highlight cross-selling opportunities based on patterns in product discussions and customer needs. Identify promising new market areas from topics found in the meeting descriptions. Quantify key opportunities and match them to customer IDs.
+
+        3. **Sales Team Performance:** Evaluate the frequency and quality of meetings. Identify high-performing interactions (e.g., those that result in sales or show positive sentiment) and suggest areas of improvement. Include metrics such as the percentage of meetings that led to sales.
+
+        4. **Sentiment & NLP Analysis:** Conduct a sentiment analysis of the meeting descriptions. Identify recurring topics (e.g., crops, pests, concerns), sentiment trends (positive/neutral/negative), and specific mentions of competitors or rival brands. Provide a concise breakdown of frequency and tone.
+
+        5. **Predictive Insights:** Forecast future customer needs or risks based on description patterns, seasonality, and frequently mentioned challenges. Recommend actionable engagement strategies for each insight.
+
+        Format the output clearly using markdown with sections, bullet points, and tables where helpful. Use professional, concise English. Structure your writing in a way that makes the results ready to be integrated into dashboards or shared in business updates.
+
+        **My Communication Style Summary:**
+
+        * Analytical, structured, and action-oriented.
+        * Prefers clear, quantifiable insights over vague summaries.
+        * Uses natural but professional language.
+        * Prioritizes practical outputs for commercial use in sales planning.
+        > Write concisely in bullet points and section headers. Use markdown formatting. Avoid redundancy. Deliver actionable insights ready to inform sales strategy. Write in professional, fluent Portuguese (PT-PT).
+        """
+        return call_groq(prompt)
+
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(analyze_district, district, data): district for district, data in district_data.items()}
+        for future in concurrent.futures.as_completed(futures):
+            district = futures[future]
+            try:
+                insights = future.result()
+                results[district] = insights
+            except Exception as e:
+                st.error(f"Erro na análise do distrito {district}: {e}")
+    return results

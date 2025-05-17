@@ -383,3 +383,117 @@ for index, row in top_produto.iterrows():
     st.write("---")
     # Adiciona uma linha separadora entre os meses
     # st.markdown("---")
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------
+# Revenue & Conversion by Crop Type
+# ------------------------------------------------------------------
+crop_stats = (
+    f_reunioes.groupby("cultura")
+    .agg(
+        visitas=("houve_venda", "count"),
+        vendas=("houve_venda", lambda x: (x == "Sim").sum()),
+        receita=("total_vendido", "sum"),
+    )
+    .reset_index()
+)
+crop_stats["taxa_conv_%"] = (crop_stats["vendas"] / crop_stats["visitas"] * 100).round(1)
+
+st.header("Receita e Taxa de Conversão por Cultura (Norte)")
+st.dataframe(crop_stats.sort_values("receita", ascending=False))
+
+chart = (
+    alt.Chart(crop_stats)
+    .mark_bar()
+    .encode(
+        x=alt.X("cultura:N", sort="-y", title="Cultura"),
+        y=alt.Y("receita:Q", title="Receita (€)"),
+        tooltip=["receita:Q", "taxa_conv_%:Q"],
+        color=alt.value("steelblue"),
+    )
+    .properties(width=600, height=400)
+)
+st.altair_chart(chart, use_container_width=True)
+
+
+
+
+
+# ------------------------------------------------------------------
+# Funnel per Sales Rep  –  now with "zero‑sales" aggregation
+# ------------------------------------------------------------------
+rep_stats = (
+    f_reunioes.groupby("responsavel_principal")
+    .agg(
+        visitas=("houve_venda", "count"),
+        vendas=("houve_venda", lambda x: (x == "Sim").sum()),
+        receita=("total_vendido", "sum"),
+    )
+    .reset_index()
+)
+rep_stats["taxa_conv_%"] = (rep_stats["vendas"] / rep_stats["visitas"] * 100).round(1)
+
+
+# 1. Split reps into "has revenue" vs "no revenue"
+
+mask_zero = rep_stats["receita"] == 0
+rep_no_sales = rep_stats[mask_zero]
+rep_sales   = rep_stats[~mask_zero]
+
+# 2. Aggregate the zero‑revenue reps
+
+if not rep_no_sales.empty:
+    agg_row = {
+        "responsavel_principal": f"{len(rep_no_sales)} vendedor(es) sem vendas",
+        "visitas":   rep_no_sales["visitas"].sum(),
+        "vendas":    rep_no_sales["vendas"].sum(),
+        "receita":   0.0,
+    }
+    agg_row["taxa_conv_%"] = (
+        agg_row["vendas"] / agg_row["visitas"] * 100 if agg_row["visitas"] else 0
+    )
+    rep_display = pd.concat([rep_sales, pd.DataFrame([agg_row])], ignore_index=True)
+else:
+    rep_display = rep_stats.copy()
+
+# 3. Display metric cards (best revenue first)
+
+st.header("Desempenho por Vendedor (Norte)")
+for _, row in rep_display.sort_values("receita", ascending=False).iterrows():
+    st.metric(
+        label=row["responsavel_principal"],
+        value=f"{row['receita']:.0f} €",
+        delta=f"Conv.: {row['taxa_conv_%']:.1f} %",
+    )
+
+
+
+# ------------------------------------------------------------------
+# ASP & Margin per Product
+# ------------------------------------------------------------------
+# (Requires a `custo_unitario` column; replace or drop if not available)
+if "custo_unitario" in f_reunioes.columns:
+    prod_margin = (
+        f_reunioes.groupby("ref")
+        .agg(
+            receita=("total_vendido", "sum"),
+            qty=("quantidade_vendida", "sum"),
+            custo_total=("custo_unitario", lambda x: (x * f_reunioes.loc[x.index, "quantidade_vendida"]).sum()),
+        )
+        .reset_index()
+    )
+    prod_margin["ASP"] = prod_margin["receita"] / prod_margin["qty"]
+    prod_margin["margem_%"] = ((prod_margin["receita"] - prod_margin["custo_total"]) / prod_margin["receita"] * 100).round(1)
+
+    st.header("ASP e Margem por Produto (Norte)")
+    st.dataframe(prod_margin.sort_values("margem_%", ascending=False)[["ref", "ASP", "margem_%"]])
+
+
+
