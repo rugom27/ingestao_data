@@ -33,15 +33,15 @@ MODEL_TOKEN_LIMIT = {
 }
 
 MODEL_ENCODINGS = {
-    "llama3-70b-8192": "clk100k_base",
-    "llama3-8b-8192": "clk100k_base",
-    "llama-3.1-8b-instant": "clk100k_base",
-    "llama-3.3-70b-versatile": "clk100k_base",
+    "llama3-70b-8192": "cl100k_base",
+    "llama3-8b-8192": "cl100k_base",
+    "llama-3.1-8b-instant": "cl100k_base",
+    "llama-3.3-70b-versatile": "cl100k_base",
     "gemma2-9b-it": "r50k_base",
-    "deepseek-r1-distill-llama-70b": "clk100k_base",
-    "meta-llama/llama-4-maverick-17b-128e-instruct": "clk100k_base",
-    "meta-llama/llama-4-scout-17b-16e-instruct": "clk100k_base",
-    "meta-llama/Llama-Guard-4-12B": "clk100k_base",
+    "deepseek-r1-distill-llama-70b": "cl100k_base",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "cl100k_base",
+    "meta-llama/llama-4-scout-17b-16e-instruct": "cl100k_base",
+    "meta-llama/Llama-Guard-4-12B": "cl100k_base",
 }
 
 
@@ -82,11 +82,11 @@ def fetch_reunioes():
 
 def get_encoder(model_id: str) -> tiktoken.Encoding:
     """Always return a usable tiktoken.Encoding
-    Falls back to overries table, then to clk100k_base"""
+    Falls back to overries table, then to cl100k_base"""
     try:
         return tiktoken.encoding_for_model(model_id)
     except:
-        enc_name = MODEL_ENCODINGS.get(model_id, "clk100k_base")
+        enc_name = MODEL_ENCODINGS.get(model_id, "cl100k_base")
         return tiktoken.get_encoding(enc_name)
 
 
