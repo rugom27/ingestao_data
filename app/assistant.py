@@ -32,6 +32,18 @@ MODEL_OPTIONS = {
     "LLaMA 4 - Guard 12B": "meta-llama/Llama-Guard-4-12B",
 }
 
+MODEL_TOKEN_LIMIT = {
+    "llama3-70b-8192": 8192,
+    "llama3-8b-8192": 8192,
+    "llama-3.1-8b-instant": 131072,
+    "llama-3.3-70b-versatile": 131072,
+    "gemma2-9b-it": 8192,
+    "deepseek-r1-distill-llama-70b": 131072,
+    "meta-llama/llama-4-maverick-17b-128e-instruct": 131072,
+    "meta-llama/llama-4-scout-17b-16e-instruct": 131072,
+    "meta-llama/Llama-Guard-4-12B": 128,
+}
+
 # ─── Caching DB calls ──────────────────────────────────────────────────────────
 
 
@@ -85,9 +97,10 @@ with tab1:
                 df = pd.DataFrame(data)
                 df = preprocess_sentiment(df)
 
-                # 2) Chunk & LLM
-                chunks = reunioes_to_json_chunks(df.to_dict(orient="records"))
-                segment_reports = get_segments_report(chunks, model_id)
+                # 2) Chunk & LLM (auto‑sized per model)
+                records = df.to_dict(orient="records")
+                json_chunks = reunioes_to_json_chunks(records, model_id)
+                segment_reports = get_segments_report(json_chunks, model_id)
 
                 # 3) Aggregate & persist
                 final_report = aggregate_reports(segment_reports)

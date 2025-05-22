@@ -7,6 +7,8 @@ from groq import Groq
 import concurrent.futures
 import streamlit as st
 from textblob import TextBlob
+import tiktoken
+from app.assistant import MODEL_TOKEN_LIMIT
 
 # Replace with your actual DB connection utilities
 from db import get_connection, release_connection
@@ -54,12 +56,54 @@ def fetch_reunioes():
         release_connection(conn)
 
 
-def reunioes_to_json_chunks(data, n_chunks=5):
-    chunk_size = math.ceil(len(data) / n_chunks)
-    return [
-        json.dumps(data[i : i + chunk_size], default=str, ensure_ascii=False)
-        for i in range(0, len(data), chunk_size)
-    ]
+def reunioes_to_json_chunks(
+    records: list, model_id: str, target_tokens: int = None
+) -> list[str]:
+    """
+    Split `records` into JSON strings, each ≲ target_tokens for the given model.
+    If target_tokens is None, defaults to half of MODEL_TOKEN_LIMIT[model_id].
+    """
+    # pick per‐chunk target
+    limit = MODEL_TOKEN_LIMIT.get(model_id, 8000)
+    if target_tokens is None:
+        target_tokens = max(1, limit // 2)
+
+    # prepare tokenizer
+    enc = tiktoken.encoding_for_model(model_id)
+
+    chunks = []
+    current_chunk = []
+    current_tokens = 0
+
+    for rec in records:
+        # serialize and count tokens
+        rec_json = json.dumps(rec, default=str, ensure_ascii=False)
+        tok = len(enc.encode(rec_json))
+
+        # if single record too big, emit it by itself
+        if tok > target_tokens:
+            if current_chunk:
+                chunks.append(
+                    json.dumps(current_chunk, default=str, ensure_ascii=False)
+                )
+                current_chunk, current_tokens = [], 0
+            chunks.append(json.dumps([rec], default=str, ensure_ascii=False))
+            continue
+
+        # if adding this record would overflow, flush current
+        if current_tokens + tok > target_tokens:
+            chunks.append(json.dumps(current_chunk, default=str, ensure_ascii=False))
+            current_chunk, current_tokens = [], 0
+
+        # add to current
+        current_chunk.append(rec)
+        current_tokens += tok
+
+    # flush remainder
+    if current_chunk:
+        chunks.append(json.dumps(current_chunk, default=str, ensure_ascii=False))
+
+    return chunks
 
 
 def preprocess_sentiment(df):
