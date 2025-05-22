@@ -32,17 +32,6 @@ MODEL_OPTIONS = {
     "LLaMA 4 - Guard 12B": "meta-llama/Llama-Guard-4-12B",
 }
 
-MODEL_TOKEN_LIMIT = {
-    "llama3-70b-8192": 8192,
-    "llama3-8b-8192": 8192,
-    "llama-3.1-8b-instant": 131072,
-    "llama-3.3-70b-versatile": 131072,
-    "gemma2-9b-it": 8192,
-    "deepseek-r1-distill-llama-70b": 131072,
-    "meta-llama/llama-4-maverick-17b-128e-instruct": 131072,
-    "meta-llama/llama-4-scout-17b-16e-instruct": 131072,
-    "meta-llama/Llama-Guard-4-12B": 128,
-}
 
 # ─── Caching DB calls ──────────────────────────────────────────────────────────
 

@@ -8,7 +8,7 @@ import concurrent.futures
 import streamlit as st
 from textblob import TextBlob
 import tiktoken
-from assistant import MODEL_TOKEN_LIMIT
+
 
 # Replace with your actual DB connection utilities
 from db import get_connection, release_connection
@@ -19,6 +19,18 @@ load_dotenv()
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
+
+MODEL_TOKEN_LIMIT = {
+    "llama3-70b-8192": 8192,
+    "llama3-8b-8192": 8192,
+    "llama-3.1-8b-instant": 131072,
+    "llama-3.3-70b-versatile": 131072,
+    "gemma2-9b-it": 8192,
+    "deepseek-r1-distill-llama-70b": 131072,
+    "meta-llama/llama-4-maverick-17b-128e-instruct": 131072,
+    "meta-llama/llama-4-scout-17b-16e-instruct": 131072,
+    "meta-llama/Llama-Guard-4-12B": 128,
+}
 
 
 def call_groq(prompt, model, max_tokens=2048, temperature=0.3):
