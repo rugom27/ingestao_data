@@ -32,6 +32,18 @@ MODEL_TOKEN_LIMIT = {
     "meta-llama/Llama-Guard-4-12B": 128,
 }
 
+MODEL_ENCODINGS = {
+    "llama3-70b-8192": "clk100k_base",
+    "llama3-8b-8192": "clk100k_base",
+    "llama-3.1-8b-instant": "clk100k_base",
+    "llama-3.3-70b-versatile": "clk100k_base",
+    "gemma2-9b-it": "r50k_base",
+    "deepseek-r1-distill-llama-70b": "clk100k_base",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "clk100k_base",
+    "meta-llama/llama-4-scout-17b-16e-instruct": "clk100k_base",
+    "meta-llama/Llama-Guard-4-12B": "clk100k_base",
+}
+
 
 def call_groq(prompt, model, max_tokens=2048, temperature=0.3):
     try:
@@ -81,7 +93,11 @@ def reunioes_to_json_chunks(
         target_tokens = max(1, limit // 2)
 
     # prepare tokenizer
-    enc = tiktoken.encoding_for_model(model_id)
+    try:
+        enc = tiktoken.encoding_for_model(model_id)
+    except Exception:
+        encoding_name = MODEL_ENCODINGS.get(model_id, "cl100k_base")
+        enc = tiktoken.get_encoding(encoding_name)
 
     chunks = []
     current_chunk = []
