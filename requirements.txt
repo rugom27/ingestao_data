@@ -6,3 +6,4 @@ streamlit_calendar
 pandasql
 matplotlib
 groq
+textblob
