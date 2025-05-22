@@ -8,7 +8,7 @@ import concurrent.futures
 import streamlit as st
 from textblob import TextBlob
 import tiktoken
-from app.assistant import MODEL_TOKEN_LIMIT
+from assistant import MODEL_TOKEN_LIMIT
 
 # Replace with your actual DB connection utilities
 from db import get_connection, release_connection
