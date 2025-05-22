@@ -80,6 +80,16 @@ def fetch_reunioes():
         release_connection(conn)
 
 
+def get_encoder(model_id: str) -> tiktoken.Encoding:
+    """Always return a usable tiktoken.Encoding
+    Falls back to overries table, then to clk100k_base"""
+    try:
+        return tiktoken.encoding_for_model(model_id)
+    except:
+        enc_name = MODEL_ENCODINGS.get(model_id, "clk100k_base")
+        return tiktoken.get_encoding(enc_name)
+
+
 def reunioes_to_json_chunks(
     records: list, model_id: str, target_tokens: int = None
 ) -> list[str]:
@@ -93,11 +103,7 @@ def reunioes_to_json_chunks(
         target_tokens = max(1, limit // 2)
 
     # prepare tokenizer
-    try:
-        enc = tiktoken.encoding_for_model(model_id)
-    except Exception:
-        encoding_name = MODEL_ENCODINGS.get(model_id, "cl100k_base")
-        enc = tiktoken.get_encoding(encoding_name)
+    enc = get_encoder(model_id)
 
     chunks = []
     current_chunk = []
