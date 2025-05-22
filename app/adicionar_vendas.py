@@ -50,6 +50,7 @@ distribuidor_options = {
     "Moncorvagri-Com. Prod.Agricolas,Lda": 9,
     "Nitrilon": 10,
     "União de Fruticultores da Cova da Beira": 11,
+    "Sem Distribuidor": None,
 }
 
 # def display_page_to_rafael():
