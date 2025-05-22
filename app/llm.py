@@ -7,6 +7,7 @@ from groq import Groq
 import concurrent.futures
 import streamlit as st
 from textblob import TextBlob
+
 # Replace with your actual DB connection utilities
 from db import get_connection, release_connection
 
@@ -18,7 +19,7 @@ client = Groq(
 )
 
 
-def call_groq(prompt, model="llama-3.3-70b-versatile", max_tokens=2048, temperature=0.3):
+def call_groq(prompt, model, max_tokens=2048, temperature=0.3):
     try:
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
@@ -30,6 +31,7 @@ def call_groq(prompt, model="llama-3.3-70b-versatile", max_tokens=2048, temperat
     except Exception as e:
         st.error(f"API error: {e}")
         return ""
+
 
 def fetch_reunioes():
     sql = """
@@ -51,19 +53,27 @@ def fetch_reunioes():
     finally:
         release_connection(conn)
 
+
 def reunioes_to_json_chunks(data, n_chunks=5):
     chunk_size = math.ceil(len(data) / n_chunks)
-    return [json.dumps(data[i:i+chunk_size], default=str, ensure_ascii=False)
-            for i in range(0, len(data), chunk_size)]
+    return [
+        json.dumps(data[i : i + chunk_size], default=str, ensure_ascii=False)
+        for i in range(0, len(data), chunk_size)
+    ]
+
 
 def preprocess_sentiment(df):
-    df['sentiment'] = df['descricao'].apply(
-        lambda x: ('Positive' if TextBlob(x).sentiment.polarity > 0.2 else
-                   'Negative' if TextBlob(x).sentiment.polarity < -0.2 else
-                   'Neutral'))
+    df["sentiment"] = df["descricao"].apply(
+        lambda x: (
+            "Positive"
+            if TextBlob(x).sentiment.polarity > 0.2
+            else "Negative" if TextBlob(x).sentiment.polarity < -0.2 else "Neutral"
+        )
+    )
     return df
 
-def get_segments_report(json_chunks):
+
+def get_segments_report(json_chunks, model_choice):
     def fetch_insights(chunk, idx):
         prompt = f"""
         You are a business insights assistant for an agricultural sales team (specializing in crop protection/fertilizers).
@@ -103,7 +113,7 @@ def get_segments_report(json_chunks):
         > Use markdown formatting with clear bullet points, tables, and subtitles. Write in professional, fluent English. Make results suitable for dashboards or client strategy reports.
 
         """
-        return call_groq(prompt)
+        return call_groq(prompt, model=model_choice)
 
     results = []
     for idx, chunk in enumerate(json_chunks, 1):
@@ -113,6 +123,7 @@ def get_segments_report(json_chunks):
         except Exception as e:
             st.error(f"Error fetching insights for segment {idx}: {e}")
     return results
+
 
 def aggregate_reports(results_for_aggregation):
     prompt = f"""
@@ -159,15 +170,8 @@ def aggregate_reports(results_for_aggregation):
     return call_groq(prompt, max_tokens=4096)
 
 
-
-
-
-
-
-
-
-
 # ---------------------------------------------------------------------------------------------------------------------------------
+
 
 def fetch_reunioes_por_distrito():
     sql = """
@@ -198,7 +202,9 @@ def fetch_reunioes_por_distrito():
     finally:
         release_connection(conn)
 
+
 # Gerar relatórios segmentados por distrito
+
 
 def analyze_districts(district_data):
     def analyze_district(district, data):
@@ -235,7 +241,10 @@ def analyze_districts(district_data):
 
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(analyze_district, district, data): district for district, data in district_data.items()}
+        futures = {
+            executor.submit(analyze_district, district, data): district
+            for district, data in district_data.items()
+        }
         for future in concurrent.futures.as_completed(futures):
             district = futures[future]
             try:

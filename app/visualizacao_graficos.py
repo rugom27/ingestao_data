@@ -57,6 +57,9 @@ f_reunioes["total_vendido"] = (
     f_reunioes["quantidade_vendida"] * f_reunioes["preco_vendido"]
 )
 
+# convert data reuniao to datetime
+f_reunioes["data_reuniao"] = pd.to_datetime(f_reunioes["data_reuniao"])
+
 st.title("Dashboard de Vendas")
 col1, col2 = st.columns([2, 2])
 
@@ -77,8 +80,8 @@ with col1:
     # -----------------------------------------------------------------------------
     # Vendas do Mês Atual
     df_mes_atual = f_reunioes[
-        (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == current_year)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == current_month)
+        (f_reunioes["data_reuniao"].dt.year == current_year)
+        & (f_reunioes["data_reuniao"].dt.month == current_month)
     ]
     valor_vendas_mes_atual = df_mes_atual["total_vendido"].sum()
 
@@ -90,8 +93,8 @@ with col1:
         previous_year -= 1
 
     df_mes_anterior = f_reunioes[
-        (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == previous_year)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == previous_month)
+        (f_reunioes["data_reuniao"].dt.year == previous_year)
+        & (f_reunioes["data_reuniao"].dt.month == previous_month)
     ]
     valor_vendas_mes_anterior = df_mes_anterior["total_vendido"].sum()
 
@@ -143,9 +146,9 @@ with col2:
     # Filtrar dados do mês atual até o dia atual
     # ------------------------------
     df_mes_atual = f_reunioes[
-        (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == current_year)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == current_month)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.day <= current_day)
+        (f_reunioes["data_reuniao"].dt.year == current_year)
+        & (f_reunioes["data_reuniao"].dt.month == current_month)
+        & (f_reunioes["data_reuniao"].dt.day <= current_day)
     ]
 
     numero_de_reunioes_total_atual = df_mes_atual["houve_venda"].count()
@@ -167,9 +170,9 @@ with col2:
     # Filtrar dados do mês anterior até o mesmo dia (current_day)
     # ------------------------------
     df_mes_anterior = f_reunioes[
-        (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.year == previous_year)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.month == previous_month)
-        & (f_reunioes["data_criacao_linha_tabela_reunioes"].dt.day <= current_day)
+        (f_reunioes["data_reuniao"].dt.year == previous_year)
+        & (f_reunioes["data_reuniao"].dt.month == previous_month)
+        & (f_reunioes["data_reuniao"].dt.day <= current_day)
     ]
 
     numero_de_reunioes_total_anterior = df_mes_anterior["houve_venda"].count()
@@ -385,13 +388,6 @@ for index, row in top_produto.iterrows():
     # st.markdown("---")
 
 
-
-
-
-
-
-
-
 # ------------------------------------------------------------------
 # Revenue & Conversion by Crop Type
 # ------------------------------------------------------------------
@@ -404,7 +400,9 @@ crop_stats = (
     )
     .reset_index()
 )
-crop_stats["taxa_conv_%"] = (crop_stats["vendas"] / crop_stats["visitas"] * 100).round(1)
+crop_stats["taxa_conv_%"] = (crop_stats["vendas"] / crop_stats["visitas"] * 100).round(
+    1
+)
 
 st.header("Receita e Taxa de Conversão por Cultura (Norte)")
 st.dataframe(crop_stats.sort_values("receita", ascending=False))
@@ -421,9 +419,6 @@ chart = (
     .properties(width=600, height=400)
 )
 st.altair_chart(chart, use_container_width=True)
-
-
-
 
 
 # ------------------------------------------------------------------
@@ -445,16 +440,16 @@ rep_stats["taxa_conv_%"] = (rep_stats["vendas"] / rep_stats["visitas"] * 100).ro
 
 mask_zero = rep_stats["receita"] == 0
 rep_no_sales = rep_stats[mask_zero]
-rep_sales   = rep_stats[~mask_zero]
+rep_sales = rep_stats[~mask_zero]
 
 # 2. Aggregate the zero‑revenue reps
 
 if not rep_no_sales.empty:
     agg_row = {
         "responsavel_principal": f"{len(rep_no_sales)} vendedor(es) sem vendas",
-        "visitas":   rep_no_sales["visitas"].sum(),
-        "vendas":    rep_no_sales["vendas"].sum(),
-        "receita":   0.0,
+        "visitas": rep_no_sales["visitas"].sum(),
+        "vendas": rep_no_sales["vendas"].sum(),
+        "receita": 0.0,
     }
     agg_row["taxa_conv_%"] = (
         agg_row["vendas"] / agg_row["visitas"] * 100 if agg_row["visitas"] else 0
@@ -474,7 +469,6 @@ for _, row in rep_display.sort_values("receita", ascending=False).iterrows():
     )
 
 
-
 # ------------------------------------------------------------------
 # ASP & Margin per Product
 # ------------------------------------------------------------------
@@ -485,15 +479,21 @@ if "custo_unitario" in f_reunioes.columns:
         .agg(
             receita=("total_vendido", "sum"),
             qty=("quantidade_vendida", "sum"),
-            custo_total=("custo_unitario", lambda x: (x * f_reunioes.loc[x.index, "quantidade_vendida"]).sum()),
+            custo_total=(
+                "custo_unitario",
+                lambda x: (x * f_reunioes.loc[x.index, "quantidade_vendida"]).sum(),
+            ),
         )
         .reset_index()
     )
     prod_margin["ASP"] = prod_margin["receita"] / prod_margin["qty"]
-    prod_margin["margem_%"] = ((prod_margin["receita"] - prod_margin["custo_total"]) / prod_margin["receita"] * 100).round(1)
+    prod_margin["margem_%"] = (
+        (prod_margin["receita"] - prod_margin["custo_total"])
+        / prod_margin["receita"]
+        * 100
+    ).round(1)
 
     st.header("ASP e Margem por Produto (Norte)")
-    st.dataframe(prod_margin.sort_values("margem_%", ascending=False)[["ref", "ASP", "margem_%"]])
-
-
-
+    st.dataframe(
+        prod_margin.sort_values("margem_%", ascending=False)[["ref", "ASP", "margem_%"]]
+    )

@@ -5,6 +5,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 import time
+from datetime import datetime
 
 # Carregar variáveis do .env
 load_dotenv()
@@ -154,6 +155,46 @@ def get_all_reunioes_para_vizualizacao():
         release_connection(conn)
 
 
+def get_last_general_report():
+    """Obtém o último general report gerado por LLM"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT *
+                    FROM llm_reports
+                    WHERE type = 'general'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """
+            )
+            return cur.fetchall() or []
+    except:
+        st.error("Não existem relatório disponíveis")
+    finally:
+        release_connection(conn)
+
+
+def get_last_regional_report():
+    """Obtém o último regional report gerado por LLM"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT *
+                    FROM llm_reports
+                    WHERE TYPE = 'regional'
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                """
+            )
+            return cur.fetchall() or []
+    except:
+        st.error("Não existem relatório disponíveis")
+    finally:
+        release_connection(conn)
+
+
 # ---------------------------- Funções de escrita ---------------------------------
 
 
@@ -273,6 +314,47 @@ def update_reuniao(
     except Exception as e:
         conn.rollback()
         st.error(f"Erro ao atualizar reunião: {e}")
+    finally:
+        release_connection(conn)
+
+
+def insert_llm_general_report(final_report: str, report_type: str = "general"):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("BEGIN;")
+            cur.execute(
+                """
+                INSERT INTO llm_reports (created_at, type, report)
+                VALUES (%s, %s, %s)
+                """,
+                (datetime.now(), report_type, final_report),
+            )
+            conn.commit()
+    except Exception as e:
+        conn.rollback()
+        st.error(f"Erro ao registrar report: {e}")
+    finally:
+        release_connection(conn)
+
+
+def insert_llm_regional_report(final_report: str, report_type: str = "regional"):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("BEGIN;")
+            cur.execute(
+                """
+                INSERT INTO llm_reports (created_at, type, report)
+                VALUES (%s, %s, %s)
+                """,
+                (datetime.now(), report_type, final_report),
+            )
+            conn.commit()
+            st.success("Report registado com sucesso!", icon="✅")
+    except Exception as e:
+        conn.rollback()
+        st.error(f"Erro ao registrar report: {e}")
     finally:
         release_connection(conn)
 
