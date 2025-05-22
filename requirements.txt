@@ -7,3 +7,4 @@ pandasql
 matplotlib
 groq
 textblob
+tiktoken
