@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import tiktoken
 
 ENC = tiktoken.get_encoding("cl100k_base")
-CHUNK_TARGET = 2_000  # ~⅓ of token budget
+CHUNK_TARGET = 2_000  # a third of the token budget
 
 
 def reunioes_to_json_chunks(records: List[Dict[str, Any]]) -> List[str]:

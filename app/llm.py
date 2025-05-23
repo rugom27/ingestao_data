@@ -54,15 +54,12 @@ ENC = tiktoken.get_encoding("cl100k_base")
 
 
 def _renew_window() -> None:
+    """Resets counters if 60s have elapsed since window start."""
     global _window_start_ts, _tokens_in_window, _reqs_in_window
     if time.time() - _window_start_ts >= 60:
         _window_start_ts = time.time()
         _tokens_in_window = 0
         _reqs_in_window = 0
-
-
-def _count_tokens(text: str) -> int:
-    return len(ENC.encode(text))
 
 
 def call_groq(
@@ -77,7 +74,9 @@ def call_groq(
     • Guarantees ≤30 calls/min  AND  ≤6 000 tokens/min
     • Retries with exponential back-off.
     """
-    request_tokens = _count_tokens(prompt) + max_tokens
+    global _tokens_in_window, _reqs_in_window
+
+    request_tokens = len(ENC.encode(prompt)) + max_tokens
 
     for attempt in range(retries):
         with _token_lock:
