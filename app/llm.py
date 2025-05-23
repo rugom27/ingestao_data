@@ -3,11 +3,15 @@ import json
 import math
 import requests
 from dotenv import load_dotenv
-from groq import Groq
+from groq import Groq, GroqError
 import concurrent.futures
 import streamlit as st
 from textblob import TextBlob
 import tiktoken
+
+import os, time
+from threading import Lock
+from typing import Optional
 
 
 # Replace with your actual DB connection utilities
@@ -32,31 +36,87 @@ MODEL_TOKEN_LIMIT = {
     "meta-llama/Llama-Guard-4-12B": 128,
 }
 
-MODEL_ENCODINGS = {
-    "llama3-70b-8192": "cl100k_base",
-    "llama3-8b-8192": "cl100k_base",
-    "llama-3.1-8b-instant": "cl100k_base",
-    "llama-3.3-70b-versatile": "cl100k_base",
-    "gemma2-9b-it": "r50k_base",
-    "deepseek-r1-distill-llama-70b": "cl100k_base",
-    "meta-llama/llama-4-maverick-17b-128e-instruct": "cl100k_base",
-    "meta-llama/llama-4-scout-17b-16e-instruct": "cl100k_base",
-    "meta-llama/Llama-Guard-4-12B": "cl100k_base",
-}
+MODEL_ENCODINGS = {"deepseek-r1-distill-llama-70b": "cl100k_base"}
 
 
-def call_groq(prompt, model, max_tokens=2048, temperature=0.3):
-    try:
-        response = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model=model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        st.error(f"API error: {e}")
-        return ""
+# DeepSeek limits
+TOKENS_PER_MIN = 6_000
+REQS_PER_MIN = 30
+
+# Internal state for throttling
+_token_lock = Lock()
+_window_start_ts = time.time()
+_tokens_in_window: int = 0
+_reqs_in_window: int = 0
+
+# One encoder, reused
+ENC = tiktoken.get_encoding("cl100k_base")
+
+
+def _renew_window() -> None:
+    global _window_start_ts, _tokens_in_window, _reqs_in_window
+    if time.time() - _window_start_ts >= 60:
+        _window_start_ts = time.time()
+        _tokens_in_window = 0
+        _reqs_in_window = 0
+
+
+def _count_tokens(text: str) -> int:
+    return len(ENC.encode(text))
+
+
+def call_groq(
+    prompt: str,
+    *,
+    max_tokens: int = 1024,
+    temperature: float = 0.3,
+    retries: int = 3,
+) -> str:
+    """
+    DeepSeek-specific Groq wrapper.
+    • Guarantees ≤30 calls/min  AND  ≤6 000 tokens/min
+    • Retries with exponential back-off.
+    """
+    request_tokens = _count_tokens(prompt) + max_tokens
+
+    for attempt in range(retries):
+        with _token_lock:
+            _renew_window()
+
+            # If this request would exceed either limit, calculate wait
+            excess_tokens = max(0, _tokens_in_window + request_tokens - TOKENS_PER_MIN)
+            excess_reqs = max(0, _reqs_in_window + 1 - REQS_PER_MIN)
+
+            # time needed to clear excess (in seconds)
+            wait_secs = 0.0
+            if excess_tokens > 0:
+                wait_secs = max(wait_secs, 60 * excess_tokens / TOKENS_PER_MIN)
+            if excess_reqs > 0:
+                wait_secs = max(wait_secs, 60 * excess_reqs / REQS_PER_MIN)
+
+            if wait_secs:
+                time.sleep(wait_secs)
+                _renew_window()  # window may have rolled over while we slept
+
+            # book-keep
+            _tokens_in_window += request_tokens
+            _reqs_in_window += 1
+
+        # ---- make the call --------------------------------------------------
+        try:
+            r = client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="deepseek-r1-distill-llama-70b",
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return r.choices[0].message.content.strip()
+
+        except GroqError as e:
+            if attempt == retries - 1:
+                raise
+            backoff = 2**attempt
+            time.sleep(backoff)
 
 
 def fetch_reunioes():
@@ -80,66 +140,6 @@ def fetch_reunioes():
         release_connection(conn)
 
 
-def get_encoder(model_id: str) -> tiktoken.Encoding:
-    """Always return a usable tiktoken.Encoding
-    Falls back to overries table, then to cl100k_base"""
-    try:
-        return tiktoken.encoding_for_model(model_id)
-    except:
-        enc_name = MODEL_ENCODINGS.get(model_id, "cl100k_base")
-        return tiktoken.get_encoding(enc_name)
-
-
-def reunioes_to_json_chunks(
-    records: list, model_id: str, target_tokens: int = None
-) -> list[str]:
-    """
-    Split `records` into JSON strings, each ≲ target_tokens for the given model.
-    If target_tokens is None, defaults to half of MODEL_TOKEN_LIMIT[model_id].
-    """
-    # pick per‐chunk target
-    limit = MODEL_TOKEN_LIMIT.get(model_id, 8000)
-    if target_tokens is None:
-        target_tokens = max(1, limit // 2)
-
-    # prepare tokenizer
-    enc = get_encoder(model_id)
-
-    chunks = []
-    current_chunk = []
-    current_tokens = 0
-
-    for rec in records:
-        # serialize and count tokens
-        rec_json = json.dumps(rec, default=str, ensure_ascii=False)
-        tok = len(enc.encode(rec_json))
-
-        # if single record too big, emit it by itself
-        if tok > target_tokens:
-            if current_chunk:
-                chunks.append(
-                    json.dumps(current_chunk, default=str, ensure_ascii=False)
-                )
-                current_chunk, current_tokens = [], 0
-            chunks.append(json.dumps([rec], default=str, ensure_ascii=False))
-            continue
-
-        # if adding this record would overflow, flush current
-        if current_tokens + tok > target_tokens:
-            chunks.append(json.dumps(current_chunk, default=str, ensure_ascii=False))
-            current_chunk, current_tokens = [], 0
-
-        # add to current
-        current_chunk.append(rec)
-        current_tokens += tok
-
-    # flush remainder
-    if current_chunk:
-        chunks.append(json.dumps(current_chunk, default=str, ensure_ascii=False))
-
-    return chunks
-
-
 def preprocess_sentiment(df):
     df["sentiment"] = df["descricao"].apply(
         lambda x: (
@@ -151,56 +151,54 @@ def preprocess_sentiment(df):
     return df
 
 
-def get_segments_report(json_chunks, model_choice):
-    def fetch_insights(chunk, idx):
-        prompt = f"""
-        You are a business insights assistant for an agricultural sales team (specializing in crop protection/fertilizers).
+def get_segments_report(json_chunks):
+    segment_reports = []
+    try:
+        for idx, chunk in enumerate(json_chunks, 1):
+            prompt = f"""
+            You are a business insights assistant for an agricultural sales team (specializing in crop protection/fertilizers).
 
-        Given the following data segment:
-        ```json
-        {chunk}
-        ```
-        Analyze this regional meeting data to help a field sales representative understand their client base and optimize their sales strategy. Structure your analysis into the following sections:
+            Given the following data segment - number {idx}:
+            ```json
+            {chunk}
+            ```
+            Analyze this regional meeting data to help a field sales representative understand their client base and optimize their sales strategy. Structure your analysis into the following sections:
 
-        1. **Client Relationship (CRM) Analysis**
-        - Identify high-potential clients (e.g., multiple meetings, product interest, recent purchases).
-        - Detect churn-risk clients (e.g., frequent “no sale”, negative tone, objections).
-        - Quantify: number of clients per category with justification (include `cliente_id`).
+            1. **Client Relationship (CRM) Analysis**
+            - Identify high-potential clients (e.g., multiple meetings, product interest, recent purchases).
+            - Detect churn-risk clients (e.g., frequent “no sale”, negative tone, objections).
+            - Quantify: number of clients per category with justification (include `cliente_id`).
 
-        2. **Strategic Product Opportunities**
-        - Identify cross-selling opportunities based on product patterns and client needs.
-        - Spot emerging demands or unaddressed problems from meeting descriptions.
-        - Highlight potential new markets or crops.
+            2. **Strategic Product Opportunities**
+            - Identify cross-selling opportunities based on product patterns and client needs.
+            - Spot emerging demands or unaddressed problems from meeting descriptions.
+            - Highlight potential new markets or crops.
 
-        3. **Sales Team Effectiveness**
-        - Evaluate meeting productivity (e.g., % with successful sales).
-        - Identify effective behaviors (phrases, tone, product combos).
-        - Recommend areas of improvement.
+            3. **Sales Team Effectiveness**
+            - Evaluate meeting productivity (e.g., % with successful sales).
+            - Identify effective behaviors (phrases, tone, product combos).
+            - Recommend areas of improvement.
 
-        4. **NLP & Sentiment Insights**
-        - Perform sentiment analysis on `descricao` fields (Positive, Neutral, Negative).
-        - Extract most common topics (e.g., pests, crop types, treatment concerns).
-        - Detect competitor mentions or rival product references.
-        - Summarize frequency metrics and patterns.
+            4. **NLP & Sentiment Insights**
+            - Perform sentiment analysis on `descricao` fields (Positive, Neutral, Negative).
+            - Extract most common topics (e.g., pests, crop types, treatment concerns).
+            - Detect competitor mentions or rival product references.
+            - Summarize frequency metrics and patterns.
 
-        5. **Predictive Signals**
-        - Based on descriptions and behavior, infer next steps for top clients.
-        - Suggest personalized engagement strategies and timing.
-        - Highlight clients that may require urgent follow-up.
+            5. **Predictive Signals**
+            - Based on descriptions and behavior, infer next steps for top clients.
+            - Suggest personalized engagement strategies and timing.
+            - Highlight clients that may require urgent follow-up.
 
-        > Use markdown formatting with clear bullet points, tables, and subtitles. Write in professional, fluent English. Make results suitable for dashboards or client strategy reports.
+            > Use markdown formatting with clear bullet points, tables, and subtitles. Write in professional, fluent English. Make results suitable for dashboards or client strategy reports.
 
-        """
-        return call_groq(prompt, model=model_choice)
+            """
 
-    results = []
-    for idx, chunk in enumerate(json_chunks, 1):
-        try:
-            insights = fetch_insights(chunk, idx)
-            results.append(insights)
-        except Exception as e:
-            st.error(f"Error fetching insights for segment {idx}: {e}")
-    return results
+            answer = call_groq(prompt)
+            segment_reports.append(answer)
+        return segment_reports
+    except Exception as e:
+        st.error(f"Error fetching insights for segment {idx}: {e}")
 
 
 def aggregate_reports(results_for_aggregation):

@@ -4,7 +4,6 @@ import pandas as pd
 
 from llm import (
     fetch_reunioes,
-    reunioes_to_json_chunks,
     get_segments_report,
     aggregate_reports,
     fetch_reunioes_por_distrito,
@@ -18,18 +17,13 @@ from db import (
     get_last_regional_report,
 )
 
+from chunker import reunioes_to_json_chunks
+
+
 # ─── Configuration ─────────────────────────────────────────────────────────────
 
 MODEL_OPTIONS = {
-    "LLaMA 3 - 70B (8K)": "llama3-70b-8192",
-    "LLaMA 3 - 8B (8K)": "llama3-8b-8192",
-    "LLaMA 3.1 - 8B Instant (128K)": "llama-3.1-8b-instant",
-    "LLaMA 3.3 - 70B Versatile (128K)": "llama-3.3-70b-versatile",
-    "Gemma 2 - 9B (8K)": "gemma2-9b-it",
     "DeepSeek - 70B (128K)": "deepseek-r1-distill-llama-70b",
-    "LLaMA 4 - Maverick 17B (128K)": "meta-llama/llama-4-maverick-17b-128e-instruct",
-    "LLaMA 4 - Scout 17B (16K)": "meta-llama/llama-4-scout-17b-16e-instruct",
-    "LLaMA 4 - Guard 12B": "meta-llama/Llama-Guard-4-12B",
 }
 
 
@@ -89,9 +83,9 @@ with tab1:
                 # 2) Chunk & LLM (auto‑sized per model)
                 records = df.to_dict(orient="records")
 
-                json_chunks = reunioes_to_json_chunks(records, model_id)
+                json_chunks = reunioes_to_json_chunks(records)
 
-                segment_reports = get_segments_report(json_chunks, model_id)
+                segment_reports = get_segments_report(json_chunks)
 
                 # 3) Aggregate & persist
                 final_report = aggregate_reports(segment_reports)
