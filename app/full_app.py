@@ -10,6 +10,7 @@ pages = {
         st.Page("visualizacao_graficos.py", title="Visualizar dados"),
         st.Page("analise_distribuidores.py", title="Análise de Distribuidores"),
         st.Page("assistant.py", title="Assistente Pessoal"),
+        st.Page("sugestao_venda.py", title="Sugestões de Venda por Cliente"),
     ]
 }
 

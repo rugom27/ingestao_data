@@ -73,7 +73,7 @@ with tab1:
         fetch_last = st.form_submit_button("Obter Último Relatório Geral")
 
     if generate:
-        with st.spinner("🔄 Gerando relatório geral…"):
+        with st.spinner("A gerar relatório geral…"):
             try:
                 # 1) Load & preprocess
                 data = load_general_data()
@@ -110,13 +110,14 @@ with tab2:
         fetch_last_r = st.form_submit_button("Obter Último Relatório Regional")
 
     if generate_r:
-        with st.spinner("🔄 Gerando relatório regional…"):
+        with st.spinner("A gerar relatório regional…"):
             try:
                 # 1) Load per-district data
                 reg_data = load_regional_data()
 
-                # 2) Analyze & persist
-                district_reports = analyze_districts(reg_data, model_id)
+                # 2) Analyze & persists
+                district_reports = analyze_districts(reg_data)
+                # Save to db
                 insert_llm_regional_report(district_reports)
 
                 # 3) Display each district

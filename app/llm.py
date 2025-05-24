@@ -278,6 +278,36 @@ def fetch_reunioes_por_distrito():
         release_connection(conn)
 
 
+def fetch_reunioes_por_cliente(cliente_id):
+    sql = f"""
+    SELECT distrito, json_agg(json_build_object(
+        'cliente_id', cliente_id,
+        'client_name', name,
+        'data_reuniao', data_reuniao,
+        'descricao', descricao,
+        'houve_venda', houve_venda,
+        'product_name', ref,
+        'quantidade_vendida', quantidade_vendida,
+        'preco_unitario', preco_vendido,
+        'razao_nao_venda', razao_nao_venda,
+        'cultura', cultura,
+        'area_culturas', area_culturas
+    )) AS reunioes
+    FROM reunioes r
+    JOIN clientes c ON c.id = r.cliente_id
+    JOIN produtos p ON p.produto_id = r.produto_id
+    WHERE cliente_id = {cliente_id}
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+            return {row[0]: row[1] for row in rows}
+    finally:
+        release_connection(conn)
+
+
 # Gerar relatórios segmentados por distrito
 
 

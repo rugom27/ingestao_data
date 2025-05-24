@@ -27,3 +27,5 @@ data/
 tembo_backup.dump
 try4-v5-llm_call+v2environment-llama-index-normal-index.ipynb
 experiment.ipynb
+sugestao_venda.ipynb
+chroma_store

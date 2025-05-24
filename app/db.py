@@ -480,3 +480,22 @@ def vendas_a_distribuidores_relatorio_reunioes():
             return cur.fetchall() or []
     finally:
         release_connection(conn)
+
+
+def get_sugestao_de_vendas():
+    """Obtém o último regional report gerado por LLM"""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id , s.created_at, c.name, c.distrito,c.cultura,c.area_culturas,s.sugestao_de_venda
+                    FROM reunioes r
+                    JOIN clientes c ON c.id = r.cliente_id
+                    JOIN sugestoes_para_clientes_by_llm s ON REPLACE(s.numero_cliente, '''', '') = c.numero_cliente
+                """
+            )
+            return cur.fetchall() or []
+    except:
+        st.error("Não existem sugestões disponíveis")
+    finally:
+        release_connection(conn)
